@@ -1,0 +1,16 @@
+{
+  "name": "bt-asx-verify",
+  "version": "1.0.0",
+  "description": "Blackwood & Terrace ASX verification server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "express": "^4.19.2"
+  }
+}

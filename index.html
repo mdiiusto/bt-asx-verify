@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blackwood &amp; Terrace — Deal Sourcing Workbench</title>
+</head>
+<body style="margin:0; padding:20px; background:#fff;">
+<div id="app" style="font-family: -apple-system, Segoe UI, sans-serif; color: #14110D; max-width: 1400px; margin: 0 auto;">
+  <div style="border-bottom: 2px solid #A98D4B; padding-bottom: 16px; margin-bottom: 20px;">
+    <h1 style="font-family: Georgia, serif; font-size: 26px; font-weight: normal; margin: 0; color: #14110D;">Blackwood &amp; Terrace</h1>
+    <p style="font-family: Georgia, serif; font-size: 13px; color: #7A7264; margin: 4px 0 0; letter-spacing: 0.5px;">Deal Sourcing Workbench</p>
+  </div>
+
+
+  <div id="tabs" style="display: flex; gap: 4px; margin-bottom: 16px;">
+    <button class="tab-btn tab-active" data-tab="tenements">Tenements</button>
+    <button class="tab-btn" data-tab="minedex">Minedex</button>
+    <button class="tab-btn" data-tab="shortlist">Shortlist <span id="shortlist-count" style="font-size: 11px;"></span></button>
+    <button class="tab-btn" data-tab="exclusions">Exclusions <span id="exclusions-count" style="font-size: 11px;"></span></button>
+  </div>
+
+  <div id="panel-tenements" class="panel">
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+      <button id="live-tenements" style="padding:8px 16px; background:#14110D; color:#A98D4B; border:none; border-radius:4px; font-size:13px; cursor:pointer;">Refresh live data from DMIRS</button>
+      <span style="font-size:12px; color:#7A7264;">or upload a CSV below</span>
+    </div>
+    <div class="upload-zone" data-target="tenements">
+      <input type="file" id="file-tenements" accept=".csv" style="display:none;">
+      <p style="margin:0; font-size:14px;">Drop <b>wa_tenements_full.csv</b> here or <span class="upload-link" data-target="tenements">click to browse</span></p>
+      <p id="status-tenements" style="margin:6px 0 0; font-size:12px; color:#7A7264;"></p>
+    </div>
+    <div id="controls-tenements" style="display:none;"></div>
+    <div id="table-tenements"></div>
+  </div>
+
+  <div id="panel-minedex" class="panel" style="display:none;">
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+      <button id="live-minedex" style="padding:8px 16px; background:#14110D; color:#A98D4B; border:none; border-radius:4px; font-size:13px; cursor:pointer;">Refresh live data from DMIRS</button>
+      <span style="font-size:12px; color:#7A7264;">or upload a CSV below</span>
+    </div>
+    <div class="upload-zone" data-target="minedex">
+      <input type="file" id="file-minedex" accept=".csv" style="display:none;">
+      <p style="margin:0; font-size:14px;">Drop <b>wa_minedex_full.csv</b> here or <span class="upload-link" data-target="minedex">click to browse</span></p>
+      <p id="status-minedex" style="margin:6px 0 0; font-size:12px; color:#7A7264;"></p>
+    </div>
+    <div id="controls-minedex" style="display:none;"></div>
+    <div id="table-minedex"></div>
+  </div>
+
+  <div id="panel-shortlist" class="panel" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <p style="margin:0; font-size:13px; color:#7A7264;">Starred rows from both datasets. Notes are saved automatically.</p>
+      <button id="export-shortlist" style="background:#14110D; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Export shortlist CSV</button>
+      <button id="export-unverified" style="background:#fff; color:#14110D; border:1px solid #A98D4B; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer; margin-left:8px;">Export unverified names</button>
+    </div>
+    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:16px;">
+      <p style="margin:0 0 8px; font-size:13px; font-weight:bold;">Generate client brief</p>
+      <p style="margin:0 0 10px; font-size:12px; color:#7A7264;">Builds a branded Word document from every Opportunity card below (select which ones with the checkboxes that appear once you click here), including research findings and sales pitch angles.</p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="brief-client-name" placeholder="Client name (e.g. Godfrey Mwindaare)" style="flex:1; min-width:200px; padding:8px;">
+        <button id="generate-brief-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Generate Word brief</button>
+        <span id="brief-status" style="font-size:12px; color:#7A7264;"></span>
+      </div>
+    </div>
+    <div id="shortlist-body"></div>
+  </div>
+
+  <div id="panel-exclusions" class="panel" style="display:none;">
+    <p style="margin:0 0 12px; font-size:13px; color:#7A7264;">Terms here are hidden from both Tenements and Minedex whenever "Hide excluded" is ticked — matches against site name, project name, and holder name. Persists across every data refresh, since it's separate from the live pull.</p>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <input type="text" id="new-exclusion-input" placeholder="e.g. Elverdton, Northwest Nonferrous, Lennard Shelf..." style="flex:1; padding:8px;">
+      <button id="add-exclusion-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Add</button>
+    </div>
+    <div id="exclusions-list"></div>
+
+    <div style="border-top:1px solid #E5E0D5; margin-top:24px; padding-top:20px;">
+      <h3 style="font-family:Georgia,serif; font-size:15px; margin:0 0 8px;">Bulk ASX verification</h3>
+      <p style="margin:0 0 10px; font-size:13px; color:#7A7264;">Runs every currently-unverified name through Claude with live web search to check ASX-listed status.</p>
+      <button id="run-bulk-verify-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Run bulk verify</button>
+      <span id="bulk-verify-status" style="font-size:12px; color:#7A7264; margin-left:10px;"></span>
+      <div id="bulk-verify-results" style="margin-top:14px;"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+#app .tab-btn { padding: 10px 18px; border: none; background: #EFEBE3; color: #14110D; font-size: 14px; cursor: pointer; border-radius: 4px 4px 0 0; font-family: Georgia, serif; }
+#app .tab-btn.tab-active { background: #14110D; color: #A98D4B; }
+#app .upload-zone { border: 2px dashed #A98D4B; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 16px; background: #FAF8F4; cursor: pointer; }
+#app .upload-zone:hover { background: #F4EFE4; }
+#app .upload-link { color: #A98D4B; text-decoration: underline; cursor: pointer; }
+#app table { border-collapse: collapse; width: 100%; font-size: 12px; }
+#app th { background: #14110D; color: #fff; text-align: left; padding: 6px 8px; position: sticky; top: 0; cursor: pointer; user-select: none; white-space: nowrap; }
+#app th:hover { background: #2A2620; }
+#app td { padding: 5px 8px; border-bottom: 1px solid #E5E0D5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+#app tr:hover { background: #FAF8F4; }
+#app .table-scroll { max-height: 520px; overflow: auto; border: 1px solid #E5E0D5; border-radius: 4px; }
+#app .star-btn { cursor: pointer; font-size: 16px; color: #C9C3B5; background: none; border: none; }
+#app .star-btn.starred { color: #A98D4B; }
+#app .ctrl-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+#app input[type=text], #app select { padding: 6px 8px; border: 1px solid #C9C3B5; border-radius: 4px; font-size: 13px; }
+#app .pager { display:flex; gap:8px; align-items:center; margin-top:10px; font-size:12px; }
+#app .pager button { padding: 4px 10px; border: 1px solid #C9C3B5; background:#fff; border-radius:4px; cursor:pointer; }
+#app .pager button:disabled { opacity: 0.4; cursor: default; }
+#app .detail-row td { background: #FAF8F4; white-space: normal; max-width: none; }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+(function(){
+  const state = {
+    tenements: { rows: [], filtered: [], page: 0, sortCol: null, sortDir: 1, search: '', typeFilter: '', statusFilter: '' },
+    minedex: { rows: [], filtered: [], page: 0, sortCol: null, sortDir: 1, search: '', commodityFilter: '' },
+  };
+  const PAGE_SIZE = 60;
+  let shortlist = { tenements: {}, minedex: {}, combined: {} };
+  let locateCache = {}; // rowIdx -> array of matched tenement attributes from last lookup
+  let exclusions = []; // user-maintained deal-breaker terms, persists across data refreshes
+
+  const tenementCols = [
+    { key: 'tenement_id_formatted', label: 'ID' },
+    { key: 'tenement_type', label: 'Type' },
+    { key: 'tenement_status', label: 'Status' },
+    { key: 'holder1', label: 'Holder' },
+    { key: 'area', label: 'Area' },
+    { key: 'area_unit', label: 'Unit' },
+    { key: 'grant_date', label: 'Granted' },
+    { key: 'end_date', label: 'Expires' },
+  ];
+  const minedexCols = [
+    { key: 'site_name', label: 'Site' },
+    { key: 'short_name', label: 'Short name' },
+    { key: 'site_type', label: 'Site type' },
+    { key: 'commodity_group', label: 'Commodity group' },
+    { key: 'target_commodity', label: 'Target commodity' },
+    { key: 'site_stage', label: 'Stage' },
+    { key: 'project_name', label: 'Project' },
+  ];
+
+  // Known ASX-listed / major mining companies and common subsidiary name
+  // fragments — used to flag/filter out listed-major holders so you can
+  // focus on private, off-market vendor candidates. Not exhaustive — add
+  // to this list as you spot others in your results.
+  const MAJOR_HOLDERS = [
+    'BHP', 'RIO TINTO', 'FORTESCUE', 'FMG', 'NORTHERN STAR', 'NEWCREST',
+    'SOUTH32', 'IGO LIMITED', 'IGO LTD', 'MINERAL RESOURCES', 'EVOLUTION MINING',
+    'REGIS RESOURCES', 'GOLD FIELDS', 'NEWMONT', 'ILUKA', 'SANDFIRE',
+    'OZ MINERALS', '29METALS', '29 METALS', 'GOLDEN GROVE OPERATIONS',
+    'PANORAMIC', 'CHALICE MINING', 'RAMELIUS', 'ST BARBARA', 'SILVER LAKE',
+    'GENESIS MINERALS', 'CAPRICORN METALS', 'WEST AFRICAN RESOURCES',
+    'PERSEUS MINING', 'ALCOA', 'ALUMINA LIMITED', 'TIANQI', 'ALBEMARLE',
+    'PILBARA MINERALS', 'LIONTOWN', 'MINRES', 'WESFARMERS', 'CITIC',
+    'HANCOCK', 'ROY HILL', 'ATLAS IRON', 'MOUNT GIBSON', 'CHAMPION IRON',
+    'GINA RINEHART', 'TALISON', 'GALAXY RESOURCES', 'ALLKEM', 'ARCADIUM',
+    'IMDEX', 'ERAMET', 'GLENCORE', 'ANGLO AMERICAN', 'VALE',
+    'AERIS RESOURCES', 'ROUND OAK', 'LITHIUM AUSTRALIA', 'LITHOPHILE',
+    'VENTUREX', 'DEVELOP GLOBAL', 'ANAX METALS', 'WHIM CREEK METALS',
+    'HORSESHOE METALS', 'MURCHISON COPPER MINES',
+  ];
+  function isMajorHolder(name) {
+    if (!name) return false;
+    const upper = name.toUpperCase();
+    return MAJOR_HOLDERS.some(m => upper.includes(m));
+  }
+  function isMajorProject(row) {
+    const haystack = [row.project_name, row.site_name, row.short_name].filter(Boolean).join(' ');
+    return isMajorHolder(haystack);
+  }
+
+  function isExcluded(row) {
+    if (!exclusions.length) return false;
+    const haystack = [row.site_name, row.project_name, row.short_name, row.holder1, row.tenement_id_formatted].filter(Boolean).join(' | ').toUpperCase();
+    return exclusions.some(term => haystack.includes(term.toUpperCase()));
+  }
+  async function loadExclusions() {
+    try {
+      const e = await storageGet('bt_exclusions');
+      exclusions = e ? JSON.parse(e.value) : [];
+    } catch (err) { exclusions = []; }
+    updateExclusionsCount();
+  }
+  async function saveExclusions() {
+    try { await storageSet('bt_exclusions', JSON.stringify(exclusions)); } catch (err) { /* keep going */ }
+    updateExclusionsCount();
+  }
+  function updateExclusionsCount() {
+    document.getElementById('exclusions-count').textContent = exclusions.length ? '(' + exclusions.length + ')' : '';
+  }
+
+  async function storageGet(key) {
+    if (window.storage && typeof window.storage.get === 'function') {
+      try {
+        return await window.storage.get(key);
+      } catch (e) { /* fall through to localStorage */ }
+    }
+    try {
+      const v = localStorage.getItem(key);
+      return v !== null ? { value: v } : null;
+    } catch (e) { return null; }
+  }
+  async function storageSet(key, value) {
+    if (window.storage && typeof window.storage.set === 'function') {
+      try {
+        return await window.storage.set(key, value);
+      } catch (e) { /* fall through to localStorage */ }
+    }
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) { /* storage unavailable — shortlist stays in-memory only for this session */ }
+  }
+
+  async function loadShortlist() {
+    try {
+      const t = await storageGet('bt_shortlist_tenements');
+      shortlist.tenements = t ? JSON.parse(t.value) : {};
+    } catch(e) { shortlist.tenements = {}; }
+    try {
+      const m = await storageGet('bt_shortlist_minedex');
+      shortlist.minedex = m ? JSON.parse(m.value) : {};
+    } catch(e) { shortlist.minedex = {}; }
+    try {
+      const c = await storageGet('bt_shortlist_combined');
+      shortlist.combined = c ? JSON.parse(c.value) : {};
+    } catch(e) { shortlist.combined = {}; }
+    updateShortlistCount();
+  }
+  async function saveShortlist(dataset) {
+    try {
+      await storageSet('bt_shortlist_' + dataset, JSON.stringify(shortlist[dataset]));
+    } catch(e) { /* persistence failed — keep going, shortlist still works this session */ }
+    updateShortlistCount();
+  }
+  async function saveCombined() {
+    try {
+      await storageSet('bt_shortlist_combined', JSON.stringify(shortlist.combined));
+    } catch(e) { /* persistence failed — keep going, shortlist still works this session */ }
+    updateShortlistCount();
+  }
+  function updateShortlistCount() {
+    const n = Object.keys(shortlist.tenements).length + Object.keys(shortlist.minedex).length + Object.keys(shortlist.combined).length;
+    document.getElementById('shortlist-count').textContent = n ? '(' + n + ')' : '';
+  }
+
+  function idFor(dataset, row) {
+    return dataset === 'tenements' ? (row.tenement_id_formatted || row.tenement_id) : (row.site_code || row.short_name);
+  }
+
+  function setupUpload(dataset, filename) {
+    const zone = document.querySelector('.upload-zone[data-target="' + dataset + '"]');
+    const input = document.getElementById('file-' + dataset);
+    zone.addEventListener('click', () => input.click());
+    zone.addEventListener('dragover', e => { e.preventDefault(); });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      if (e.dataTransfer.files.length) parseFile(dataset, e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', e => {
+      if (e.target.files.length) parseFile(dataset, e.target.files[0]);
+    });
+  }
+
+  function parseFile(dataset, file) {
+    document.getElementById('status-' + dataset).textContent = 'Loading ' + file.name + '...';
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        state[dataset].rows = results.data;
+        state[dataset].filtered = results.data;
+        state[dataset].page = 0;
+        document.getElementById('status-' + dataset).textContent = results.data.length.toLocaleString() + ' rows loaded from ' + file.name;
+        buildControls(dataset);
+        renderTable(dataset);
+      },
+      error: function(err) {
+        document.getElementById('status-' + dataset).textContent = 'Error: ' + err.message;
+      }
+    });
+  }
+
+  const TENEMENTS_URL = 'https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/3/query';
+  const MINEDEX_URL = 'https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/0/query';
+
+  async function fetchLiveTenements(btn) {
+    const statusEl = document.getElementById('status-tenements');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    const outFields = 'tenid,fmt_tenid,type,survstatus,tenstatus,holdercnt,holder1,addr1,holder2,addr2,holder3,addr3,holder4,addr4,holder5,addr5,holder6,addr6,holder7,addr7,holder8,addr8,holder9,addr9,legal_area,unit_of_me,special_in,grantdate,startdate,enddate';
+    let offset = 0;
+    const pageSize = 2000;
+    const all = [];
+    try {
+      while (true) {
+        const params = new URLSearchParams({ where: '1=1', outFields, returnGeometry: 'false', f: 'json', resultOffset: offset, resultRecordCount: pageSize, orderByFields: 'tenid' });
+        const resp = await fetch(TENEMENTS_URL + '?' + params.toString());
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error.message || 'Server error');
+        const feats = data.features || [];
+        feats.forEach(f => all.push(f.attributes));
+        statusEl.textContent = 'Fetched ' + all.length.toLocaleString() + ' tenements...';
+        if (feats.length < pageSize) break;
+        offset += feats.length;
+      }
+      const rows = all.map(a => ({
+        tenement_id: a.tenid, tenement_id_formatted: a.fmt_tenid, tenement_type: a.type,
+        survey_status: a.survstatus, tenement_status: a.tenstatus, holder_count: a.holdercnt,
+        holder1: a.holder1, addr1: a.addr1, holder2: a.holder2, addr2: a.addr2,
+        holder3: a.holder3, addr3: a.addr3, holder4: a.holder4, addr4: a.addr4,
+        holder5: a.holder5, addr5: a.addr5, holder6: a.holder6, addr6: a.addr6,
+        holder7: a.holder7, addr7: a.addr7, holder8: a.holder8, addr8: a.addr8,
+        holder9: a.holder9, addr9: a.addr9,
+        area: a.legal_area, area_unit: a.unit_of_me, special_indicator: a.special_in,
+        grant_date: esriMsToDate(a.grantdate), start_date: esriMsToDate(a.startdate), end_date: esriMsToDate(a.enddate),
+      }));
+      state.tenements.rows = rows;
+      state.tenements.filtered = rows;
+      state.tenements.page = 0;
+      statusEl.textContent = rows.length.toLocaleString() + ' tenements loaded live from DMIRS (just now)';
+      buildControls('tenements');
+      renderTable('tenements');
+    } catch (err) {
+      statusEl.textContent = 'Live refresh failed: ' + err.message + ' — try again, or use the CSV upload below.';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Refresh live data from DMIRS';
+  }
+
+  async function fetchLiveMinedex(btn) {
+    const statusEl = document.getElementById('status-minedex');
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    const outFields = 'oid,gid,site_code,site_title,short_name,site_commo,site_type_,site_sub_t,site_stage,target_com,commodity,proj_code,proj_title,confidenti,point_conf,latitude,longitude,web_link,extract_da';
+    let offset = 0;
+    const pageSize = 2000;
+    const all = [];
+    try {
+      while (true) {
+        const params = new URLSearchParams({ where: '1=1', outFields, returnGeometry: 'false', f: 'json', resultOffset: offset, resultRecordCount: pageSize, orderByFields: 'oid' });
+        const resp = await fetch(MINEDEX_URL + '?' + params.toString());
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error.message || 'Server error');
+        const feats = data.features || [];
+        feats.forEach(f => all.push(f.attributes));
+        statusEl.textContent = 'Fetched ' + all.length.toLocaleString() + ' Minedex records...';
+        if (feats.length < pageSize) break;
+        offset += feats.length;
+      }
+      const rows = all.map(a => ({
+        site_code: a.site_code, site_name: a.site_title, short_name: a.short_name,
+        site_commodity_summary: a.site_commo, site_type: a.site_type_, site_sub_type: a.site_sub_t,
+        site_stage: a.site_stage, target_commodity: a.target_com, commodity_group: a.commodity,
+        project_code: a.proj_code, project_name: a.proj_title, confidentiality: a.confidenti,
+        point_confidence: a.point_conf, latitude: a.latitude, longitude: a.longitude,
+        web_link: a.web_link, extract_date: esriMsToDate(a.extract_da),
+      }));
+      state.minedex.rows = rows;
+      state.minedex.filtered = rows;
+      state.minedex.page = 0;
+      statusEl.textContent = rows.length.toLocaleString() + ' Minedex records loaded live from DMIRS (just now)';
+      buildControls('minedex');
+      renderTable('minedex');
+    } catch (err) {
+      statusEl.textContent = 'Live refresh failed: ' + err.message + ' — try again, or use the CSV upload below.';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Refresh live data from DMIRS';
+  }
+
+  function uniqueValues(rows, key, cap) {
+    const set = new Set();
+    for (let i = 0; i < rows.length && set.size < cap; i++) {
+      if (rows[i][key]) set.add(rows[i][key]);
+    }
+    return Array.from(set).sort();
+  }
+
+  function uniqueTokens(rows, key, delimiter, cap) {
+    const set = new Set();
+    rows.forEach(r => {
+      if (!r[key]) return;
+      r[key].split(delimiter).forEach(tok => {
+        const t = tok.trim();
+        if (t) set.add(t);
+      });
+    });
+    return Array.from(set).sort().slice(0, cap);
+  }
+
+  function buildControls(dataset) {
+    const el = document.getElementById('controls-' + dataset);
+    el.style.display = 'block';
+    if (dataset === 'tenements') {
+      const types = uniqueValues(state.tenements.rows, 'tenement_type', 30);
+      const statuses = uniqueValues(state.tenements.rows, 'tenement_status', 10);
+      el.innerHTML = `
+        <div class="ctrl-row">
+          <input type="text" id="search-tenements" placeholder="Search holder or ID..." style="width:220px;">
+          <select id="filter-type-tenements"><option value="">All types</option>${types.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+          <select id="filter-status-tenements"><option value="">All statuses</option>${statuses.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+          <select id="filter-holders-tenements"><option value="">Any holder count</option><option value="single">Single holder</option><option value="multi">Multiple holders (JV)</option></select>
+        </div>
+        <div class="ctrl-row">
+          <label style="font-size:12px; color:#7A7264;">Area min <input type="number" id="filter-areamin-tenements" style="width:80px; padding:5px 6px;" placeholder="0"></label>
+          <label style="font-size:12px; color:#7A7264;">max <input type="number" id="filter-areamax-tenements" style="width:80px; padding:5px 6px;" placeholder="any"></label>
+          <label style="font-size:12px; color:#7A7264;">Granted from <input type="date" id="filter-grantfrom-tenements" style="padding:5px 6px;"></label>
+          <label style="font-size:12px; color:#7A7264;">to <input type="date" id="filter-grantto-tenements" style="padding:5px 6px;"></label>
+          <label style="font-size:12px; color:#7A7264;">Expires from <input type="date" id="filter-endfrom-tenements" style="padding:5px 6px;"></label>
+          <label style="font-size:12px; color:#7A7264;">to <input type="date" id="filter-endto-tenements" style="padding:5px 6px;"></label>
+          <button id="preset-expiring-tenements" style="padding:5px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; cursor:pointer; font-size:12px;">Expiring in 12mo</button>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-offmarket-tenements"> Hide known ASX majors</label>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-tenements"> Hide excluded</label>
+          <span style="font-size:12px; color:#7A7264;" id="count-tenements"></span>
+        </div>`;
+      document.getElementById('search-tenements').addEventListener('input', e => { state.tenements.search = e.target.value.toLowerCase(); applyFilters('tenements'); });
+      document.getElementById('filter-type-tenements').addEventListener('change', e => { state.tenements.typeFilter = e.target.value; applyFilters('tenements'); });
+      document.getElementById('filter-status-tenements').addEventListener('change', e => { state.tenements.statusFilter = e.target.value; applyFilters('tenements'); });
+      document.getElementById('filter-holders-tenements').addEventListener('change', e => { state.tenements.holderFilter = e.target.value; applyFilters('tenements'); });
+      document.getElementById('filter-areamin-tenements').addEventListener('input', e => { state.tenements.areaMin = e.target.value ? parseFloat(e.target.value) : null; applyFilters('tenements'); });
+      document.getElementById('filter-areamax-tenements').addEventListener('input', e => { state.tenements.areaMax = e.target.value ? parseFloat(e.target.value) : null; applyFilters('tenements'); });
+      document.getElementById('filter-grantfrom-tenements').addEventListener('change', e => { state.tenements.grantFrom = e.target.value || null; applyFilters('tenements'); });
+      document.getElementById('filter-grantto-tenements').addEventListener('change', e => { state.tenements.grantTo = e.target.value || null; applyFilters('tenements'); });
+      document.getElementById('filter-endfrom-tenements').addEventListener('change', e => { state.tenements.endFrom = e.target.value || null; applyFilters('tenements'); });
+      document.getElementById('filter-endto-tenements').addEventListener('change', e => { state.tenements.endTo = e.target.value || null; applyFilters('tenements'); });
+      document.getElementById('preset-expiring-tenements').addEventListener('click', () => {
+        const now = new Date(); const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()+12);
+        const fmt = d => d.toISOString().slice(0,10);
+        document.getElementById('filter-endfrom-tenements').value = fmt(now);
+        document.getElementById('filter-endto-tenements').value = fmt(cutoff);
+        state.tenements.endFrom = fmt(now); state.tenements.endTo = fmt(cutoff);
+        applyFilters('tenements');
+      });
+      document.getElementById('filter-offmarket-tenements').addEventListener('change', e => { state.tenements.offMarketOnly = e.target.checked; applyFilters('tenements'); });
+      document.getElementById('filter-excluded-tenements').addEventListener('change', e => { state.tenements.hideExcluded = e.target.checked; applyFilters('tenements'); });
+    } else {
+      const commodities = uniqueValues(state.minedex.rows, 'commodity_group', 20);
+      const stages = uniqueValues(state.minedex.rows, 'site_stage', 30);
+      const siteTypes = uniqueValues(state.minedex.rows, 'site_type', 20);
+      const targetTokens = uniqueTokens(state.minedex.rows, 'target_commodity', '-', 200);
+      el.innerHTML = `
+        <div class="ctrl-row">
+          <input type="text" id="search-minedex" placeholder="Search site, project..." style="width:220px;">
+          <select id="filter-commodity-minedex"><option value="">All commodity groups</option>${commodities.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+          <select id="filter-target-minedex"><option value="">Any specific mineral</option>${targetTokens.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+          <select id="filter-stage-minedex"><option value="">All stages</option>${stages.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+          <select id="filter-sitetype-minedex"><option value="">All site types</option>${siteTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-minesonly-minedex"> Mines and deposits only</label>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-dedupe-minedex"> One row per project</label>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-viable-minedex"> Hide environment / remediation sites</label>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-minedex"> Hide excluded</label>
+          <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-asx-minedex"> Hide ASX-linked projects</label>
+          <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
+        </div>`;
+      document.getElementById('search-minedex').addEventListener('input', e => { state.minedex.search = e.target.value.toLowerCase(); applyFilters('minedex'); });
+      document.getElementById('filter-commodity-minedex').addEventListener('change', e => { state.minedex.commodityFilter = e.target.value; applyFilters('minedex'); });
+      document.getElementById('filter-target-minedex').addEventListener('change', e => { state.minedex.targetFilter = e.target.value; applyFilters('minedex'); });
+      document.getElementById('filter-stage-minedex').addEventListener('change', e => { state.minedex.stageFilter = e.target.value; applyFilters('minedex'); });
+      document.getElementById('filter-sitetype-minedex').addEventListener('change', e => { state.minedex.siteTypeFilter = e.target.value; applyFilters('minedex'); });
+      document.getElementById('filter-minesonly-minedex').addEventListener('change', e => { state.minedex.minesOnly = e.target.checked; applyFilters('minedex'); });
+      document.getElementById('filter-dedupe-minedex').addEventListener('change', e => { state.minedex.dedupe = e.target.checked; applyFilters('minedex'); });
+      document.getElementById('filter-viable-minedex').addEventListener('change', e => { state.minedex.viableOnly = e.target.checked; applyFilters('minedex'); });
+      document.getElementById('filter-excluded-minedex').addEventListener('change', e => { state.minedex.hideExcluded = e.target.checked; applyFilters('minedex'); });
+      document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
+    }
+  }
+
+  function applyFilters(dataset) {
+    const s = state[dataset];
+    let rows = s.rows;
+    if (dataset === 'tenements') {
+      if (s.typeFilter) rows = rows.filter(r => r.tenement_type === s.typeFilter);
+      if (s.statusFilter) rows = rows.filter(r => r.tenement_status === s.statusFilter);
+      if (s.search) rows = rows.filter(r => (r.holder1||'').toLowerCase().includes(s.search) || (r.tenement_id_formatted||'').toLowerCase().includes(s.search));
+      if (s.areaMin != null) rows = rows.filter(r => parseFloat(r.area) >= s.areaMin);
+      if (s.areaMax != null) rows = rows.filter(r => parseFloat(r.area) <= s.areaMax);
+      if (s.holderFilter === 'single') rows = rows.filter(r => parseInt(r.holder_count) === 1);
+      if (s.holderFilter === 'multi') rows = rows.filter(r => parseInt(r.holder_count) >= 2);
+      if (s.grantFrom) rows = rows.filter(r => r.grant_date && r.grant_date >= s.grantFrom);
+      if (s.grantTo) rows = rows.filter(r => r.grant_date && r.grant_date <= s.grantTo);
+      if (s.endFrom) rows = rows.filter(r => r.end_date && r.end_date >= s.endFrom);
+      if (s.endTo) rows = rows.filter(r => r.end_date && r.end_date <= s.endTo);
+      if (s.offMarketOnly) rows = rows.filter(r => !isMajorHolder(r.holder1));
+      if (s.hideExcluded) rows = rows.filter(r => !isExcluded(r));
+    } else {
+      if (s.commodityFilter) rows = rows.filter(r => r.commodity_group === s.commodityFilter);
+      if (s.stageFilter) rows = rows.filter(r => r.site_stage === s.stageFilter);
+      if (s.siteTypeFilter) rows = rows.filter(r => r.site_type === s.siteTypeFilter);
+      if (s.minesOnly) rows = rows.filter(r => { const t = (r.site_type||'').toUpperCase(); return t === 'MINE' || t === 'DEPOSIT'; });
+      if (s.targetFilter) rows = rows.filter(r => (r.target_commodity||'').toUpperCase().includes(s.targetFilter.toUpperCase()));
+      if (s.search) rows = rows.filter(r => (r.site_name||'').toLowerCase().includes(s.search) || (r.project_name||'').toLowerCase().includes(s.search));
+      if (s.viableOnly) {
+        rows = rows.filter(r => {
+          const t = (r.site_type||'').toUpperCase();
+          return !t.includes('ENVIRONMENT') && !t.includes('GROUP') && !t.includes('HISTORIC');
+        });
+      }
+      if (s.hideExcluded) rows = rows.filter(r => !isExcluded(r));
+      if (s.hideAsx) rows = rows.filter(r => !isMajorProject(r));
+      if (s.dedupe) {
+        const seen = new Set();
+        rows = rows.filter(r => {
+          const key = r.project_name || r.site_name;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+    }
+    s.filtered = rows;
+    s.page = 0;
+    renderTable(dataset);
+  }
+
+  function sortRows(dataset, col) {
+    const s = state[dataset];
+    if (s.sortCol === col) s.sortDir *= -1; else { s.sortCol = col; s.sortDir = 1; }
+    s.filtered.sort((a,b) => {
+      const av = (a[col]||''); const bv = (b[col]||'');
+      if (av < bv) return -1 * s.sortDir;
+      if (av > bv) return 1 * s.sortDir;
+      return 0;
+    });
+    s.page = 0;
+    renderTable(dataset);
+  }
+
+  function renderTable(dataset) {
+    const cols = dataset === 'tenements' ? tenementCols : minedexCols;
+    const s = state[dataset];
+    const countEl = document.getElementById('count-' + dataset);
+    if (countEl) countEl.textContent = s.filtered.length.toLocaleString() + ' rows';
+    const start = s.page * PAGE_SIZE;
+    const pageRows = s.filtered.slice(start, start + PAGE_SIZE);
+
+    let html = '<div class="table-scroll"><table><thead><tr><th></th>';
+    if (dataset === 'minedex') html += '<th>Tenement</th><th>Market</th>';
+    if (dataset === 'tenements') html += '<th>Market</th>';
+    cols.forEach(c => { html += `<th data-col="${c.key}" data-dataset="${dataset}">${c.label}${s.sortCol===c.key ? (s.sortDir>0?' &#9650;':' &#9660;') : ''}</th>`; });
+    html += '</tr></thead><tbody>';
+    pageRows.forEach((row, i) => {
+      const id = idFor(dataset, row);
+      const starred = shortlist[dataset][id];
+      html += `<tr data-idx="${start+i}" data-dataset="${dataset}"><td><button class="star-btn ${starred?'starred':''}" data-id="${id}" data-dataset="${dataset}">&#9733;</button><button class="exclude-btn" data-idx="${start+i}" data-dataset="${dataset}" title="Add to exclusions" style="font-size:11px; color:#A32D2D; background:none; border:none; cursor:pointer; margin-left:4px;">&#10005;</button></td>`;
+      if (dataset === 'minedex') html += `<td><button class="locate-btn" data-idx="${start+i}" style="font-size:11px; padding:4px 8px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; cursor:pointer;">Find tenement</button></td>`;
+      if (dataset === 'minedex') {
+        const major = isMajorProject(row);
+        const badge = major
+          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
+          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major in the project/site name — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>';
+        html += `<td>${badge}</td>`;
+      }
+      if (dataset === 'tenements') {
+        const major = isMajorHolder(row.holder1);
+        const badge = major
+          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Matches a known ASX-listed company or subsidiary name">ASX</span>'
+          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="Not matched to a known ASX major — does not confirm the holder is actually private. Verify via ASIC search before treating as an off-market lead.">Unverified</span>';
+        html += `<td>${badge}</td>`;
+      }
+      cols.forEach(c => { html += `<td title="${(row[c.key]||'').toString().replace(/"/g,'&quot;')}">${row[c.key]||''}</td>`; });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    const totalPages = Math.max(1, Math.ceil(s.filtered.length / PAGE_SIZE));
+    html += `<div class="pager">
+      <button id="prev-${dataset}" ${s.page===0?'disabled':''}>Prev</button>
+      <span>Page ${s.page+1} of ${totalPages}</span>
+      <button id="next-${dataset}" ${s.page>=totalPages-1?'disabled':''}>Next</button>
+    </div>`;
+
+    document.getElementById('table-' + dataset).innerHTML = html;
+
+    document.querySelectorAll(`#table-${dataset} th[data-col]`).forEach(th => {
+      th.addEventListener('click', () => sortRows(dataset, th.getAttribute('data-col')));
+    });
+    document.querySelectorAll(`#table-${dataset} .star-btn`).forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const ds = btn.getAttribute('data-dataset');
+        if (shortlist[ds][id]) delete shortlist[ds][id];
+        else {
+          const rowIdx = parseInt(btn.closest('tr').getAttribute('data-idx'));
+          shortlist[ds][id] = state[ds].filtered[rowIdx];
+        }
+        try { await saveShortlist(ds); } catch (err) { /* keep going regardless */ }
+        btn.classList.toggle('starred');
+        if (document.getElementById('panel-shortlist').style.display !== 'none') renderShortlist();
+      });
+    });
+    document.querySelectorAll(`#table-${dataset} .exclude-btn`).forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const ds = btn.getAttribute('data-dataset');
+        const rowIdx = parseInt(btn.getAttribute('data-idx'));
+        const row = state[ds].filtered[rowIdx];
+        const term = ds === 'minedex' ? (row.project_name || row.site_name) : row.holder1;
+        if (!term) return;
+        if (!confirm('Add "' + term + '" to your exclusion list? It will be hidden across both tabs whenever "Hide excluded" is ticked.')) return;
+        if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
+          exclusions.push(term);
+          await saveExclusions();
+        }
+      });
+    });
+    document.querySelectorAll(`#table-${dataset} .locate-btn`).forEach(btn => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); locateTenement(btn, dataset); });
+    });
+    const prevBtn = document.getElementById('prev-' + dataset);
+    const nextBtn = document.getElementById('next-' + dataset);
+    if (prevBtn) prevBtn.addEventListener('click', () => { s.page--; renderTable(dataset); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { s.page++; renderTable(dataset); });
+  }
+
+  function esriMsToDate(ms) {
+    if (!ms) return '';
+    try { return new Date(ms).toISOString().slice(0,10); } catch(e) { return ''; }
+  }
+
+  async function locateTenement(btn, dataset) {
+    const rowIdx = parseInt(btn.getAttribute('data-idx'));
+    const row = state[dataset].filtered[rowIdx];
+    const lat = parseFloat(row.latitude);
+    const lon = parseFloat(row.longitude);
+    const tr = btn.closest('tr');
+    const existing = tr.nextElementSibling;
+    if (existing && existing.classList.contains('detail-row')) { existing.remove(); return; }
+    if (isNaN(lat) || isNaN(lon)) {
+      insertDetailRow(tr, '<span style="color:#A32D2D;">No coordinates on this record — can\'t locate a tenement.</span>', dataset);
+      return;
+    }
+    btn.textContent = 'Searching...';
+    btn.disabled = true;
+    const url = `https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/3/query?geometry=${lon}%2C${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=tenid,fmt_tenid,type,tenstatus,holder1,legal_area,unit_of_me,enddate&returnGeometry=false&f=json`;
+    try {
+      const resp = await fetch(url);
+      const data = await resp.json();
+      const feats = (data && data.features) || [];
+      if (!feats.length) {
+        insertDetailRow(tr, '<span style="color:#7A7264;">No live or pending tenement found at this location.</span>', dataset);
+      } else {
+        locateCache[rowIdx] = feats.map(f => f.attributes);
+        const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(row.project_name || row.site_name || '');
+        let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Market</th><th>Tenement</th><th>Type</th><th>Status</th><th>Holder</th><th>Area</th><th>Expires</th><th></th></tr></thead><tbody>';
+        feats.forEach((f, matchIdx) => {
+          const a = f.attributes;
+          const major = isMajorHolder(a.holder1);
+          const badge = major
+            ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;" title="Matches a known ASX-listed company or subsidiary name">ASX-listed</span>'
+            : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;" title="Not matched to a known ASX major — does not confirm the holder is actually private. Verify via ASIC search before treating as an off-market lead.">Unverified</span>';
+          html += `<tr><td>${badge}</td><td>${a.fmt_tenid||a.tenid||''}</td><td>${a.type||''}</td><td>${a.tenstatus||''}</td><td>${a.holder1||''}</td><td>${a.legal_area||''} ${a.unit_of_me||''}</td><td>${esriMsToDate(a.enddate)}</td><td><button class="save-match-btn" data-mrow="${rowIdx}" data-tidx="${matchIdx}" style="font-size:10px; padding:3px 8px; border:1px solid #14110D; background:#14110D; color:#A98D4B; border-radius:3px; cursor:pointer;">Save match</button></td></tr>`;
+        });
+        html += '</tbody></table>';
+        html += `<div style="margin-top:8px; display:flex; gap:14px;">`;
+        if (row.web_link) html += `<a href="${row.web_link}" target="_blank" style="font-size:12px; color:#A98D4B;">MINEDEX record (resource, production, mine life) &#8599;</a>`;
+        html += `<a href="${searchUrl}" target="_blank" style="font-size:12px; color:#A98D4B;">Search project/company &#8599;</a>`;
+        html += `</div>`;
+        insertDetailRow(tr, html, dataset);
+        document.querySelectorAll(`.save-match-btn[data-mrow="${rowIdx}"]`).forEach(saveBtn => {
+          saveBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const tIdx = parseInt(saveBtn.getAttribute('data-tidx'));
+            await saveCombinedMatch(row, locateCache[rowIdx][tIdx]);
+            saveBtn.textContent = 'Saved';
+            saveBtn.disabled = true;
+          });
+        });
+      }
+    } catch (err) {
+      insertDetailRow(tr, '<span style="color:#A32D2D;">Lookup failed: ' + err.message + '</span>', dataset);
+    }
+    btn.textContent = 'Find tenement';
+    btn.disabled = false;
+  }
+
+  async function saveCombinedMatch(minedexRow, tenementAttrs) {
+    const key = (minedexRow.site_code || minedexRow.short_name || '') + '::' + (tenementAttrs.fmt_tenid || tenementAttrs.tenid || '');
+    const existing = shortlist.combined[key];
+    shortlist.combined[key] = {
+      site_name: minedexRow.site_name || '',
+      project_name: minedexRow.project_name || '',
+      commodity_group: minedexRow.commodity_group || '',
+      target_commodity: minedexRow.target_commodity || '',
+      site_stage: minedexRow.site_stage || '',
+      web_link: minedexRow.web_link || '',
+      tenement_id: tenementAttrs.fmt_tenid || tenementAttrs.tenid || '',
+      tenement_type: tenementAttrs.type || '',
+      tenement_status: tenementAttrs.tenstatus || '',
+      holder1: tenementAttrs.holder1 || '',
+      area: tenementAttrs.legal_area || '',
+      area_unit: tenementAttrs.unit_of_me || '',
+      end_date: esriMsToDate(tenementAttrs.enddate),
+      notes: existing ? existing.notes : '',
+      sales_pitch: existing ? existing.sales_pitch : '',
+      research: existing ? existing.research : '',
+    };
+    try { await saveCombined(); } catch (e) { /* keep going */ }
+  }
+
+  function insertDetailRow(tr, innerHtml, dataset) {
+    const colCount = (dataset === 'minedex' ? minedexCols.length : tenementCols.length) + 2;
+    const detail = document.createElement('tr');
+    detail.className = 'detail-row';
+    detail.innerHTML = `<td colspan="${colCount}">${innerHtml}</td>`;
+    tr.parentNode.insertBefore(detail, tr.nextSibling);
+  }
+
+  function renderShortlist() {
+    const body = document.getElementById('shortlist-body');
+    const cRows = Object.entries(shortlist.combined);
+    const tRows = Object.values(shortlist.tenements);
+    const mRows = Object.values(shortlist.minedex);
+    let html = '';
+
+    if (cRows.length) {
+      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:0 0 10px;">Opportunities (' + cRows.length + ')</h3>';
+      cRows.forEach(([key, r]) => {
+        const major = isMajorHolder(r.holder1);
+        const badge = major
+          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;">ASX-listed</span>'
+          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;">Unverified</span>';
+        const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(r.project_name || r.site_name || r.holder1 || '');
+        html += `<div style="border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:14px; background:#fff;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <input type="checkbox" class="brief-select-checkbox" data-key="${key}" checked style="margin-top:4px;">
+              <div>
+                <p style="margin:0; font-weight:bold; font-size:14px;">${r.site_name || r.project_name || 'Untitled'} ${badge}</p>
+                <p style="margin:2px 0 0; font-size:12px; color:#7A7264;">${r.project_name||''} &middot; ${r.commodity_group||''} &middot; ${r.target_commodity||''} &middot; ${r.site_stage||''}</p>
+              </div>
+            </div>
+            <button class="remove-combined-btn" data-key="${key}" style="font-size:11px; padding:4px 8px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; cursor:pointer;">Remove</button>
+          </div>
+          <table style="width:100%; font-size:12px; margin-top:10px;">
+            <tr><td style="color:#7A7264; padding:2px 8px 2px 0;">Tenement</td><td>${r.tenement_id||''}</td><td style="color:#7A7264; padding:2px 8px 2px 16px;">Type</td><td>${r.tenement_type||''}</td></tr>
+            <tr><td style="color:#7A7264; padding:2px 8px 2px 0;">Holder</td><td>${r.holder1||''}</td><td style="color:#7A7264; padding:2px 8px 2px 16px;">Status</td><td>${r.tenement_status||''}</td></tr>
+            <tr><td style="color:#7A7264; padding:2px 8px 2px 0;">Area</td><td>${r.area||''} ${r.area_unit||''}</td><td style="color:#7A7264; padding:2px 8px 2px 16px;">Expires</td><td>${r.end_date||''}</td></tr>
+          </table>
+          <div style="margin-top:8px; display:flex; gap:14px;">
+            ${r.web_link ? `<a href="${r.web_link}" target="_blank" style="font-size:12px; color:#A98D4B;">MINEDEX record (resource, production, mine life) &#8599;</a>` : ''}
+            <a href="${searchUrl}" target="_blank" style="font-size:12px; color:#A98D4B;">Research company / contact &#8599;</a>
+          </div>
+          <div style="margin-top:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+              <label style="font-size:11px; color:#7A7264;">Research findings — evidence, snippets, source links</label>
+              <button class="ai-research-btn" data-key="${key}" style="font-size:10px; padding:3px 8px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:3px; cursor:pointer;">AI research</button>
+            </div>
+            <textarea class="research-field" data-key="${key}" rows="4" style="width:100%; font-size:12px; padding:6px; border:1px solid #C9C3B5; border-radius:4px; font-family:inherit;" placeholder="Paste findings from company searches, ASIC records, ASX filings, news, MINEDEX record — include source links so it's traceable, or click AI research above to run this automatically.">${r.research||''}</textarea>
+          </div>
+          <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+              <label style="font-size:11px; color:#7A7264; display:block; margin-bottom:3px;">Notes</label>
+              <textarea class="notes-field" data-key="${key}" rows="2" style="width:100%; font-size:12px; padding:6px; border:1px solid #C9C3B5; border-radius:4px; font-family:inherit;" placeholder="Diligence notes, red flags, next steps...">${r.notes||''}</textarea>
+            </div>
+            <div>
+              <label style="font-size:11px; color:#7A7264; display:block; margin-bottom:3px;">Sales pitch angle</label>
+              <textarea class="pitch-field" data-key="${key}" rows="2" style="width:100%; font-size:12px; padding:6px; border:1px solid #C9C3B5; border-radius:4px; font-family:inherit;" placeholder="Why this fits an investor mandate...">${r.sales_pitch||''}</textarea>
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+
+    if (tRows.length) {
+      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Tenements only (' + tRows.length + ')</h3>';
+      html += '<div class="table-scroll"><table><thead><tr><th>Market</th>' + tenementCols.map(c=>`<th>${c.label}</th>`).join('') + '</tr></thead><tbody>';
+      tRows.forEach(r => {
+        const major = isMajorHolder(r.holder1);
+        const badge = major
+          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;">ASX-listed</span>'
+          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;">Unverified</span>';
+        html += '<tr><td>' + badge + '</td>' + tenementCols.map(c=>`<td>${r[c.key]||''}</td>`).join('') + '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    if (mRows.length) {
+      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Minedex only (' + mRows.length + ')</h3>';
+      html += '<div class="table-scroll"><table><thead><tr>' + minedexCols.map(c=>`<th>${c.label}</th>`).join('') + '</tr></thead><tbody>';
+      mRows.forEach(r => { html += '<tr>' + minedexCols.map(c=>`<td>${r[c.key]||''}</td>`).join('') + '</tr>'; });
+      html += '</tbody></table></div>';
+    }
+    if (!cRows.length && !tRows.length && !mRows.length) html = '<p style="color:#7A7264; font-size:13px;">No shortlisted opportunities yet. In the Minedex tab, click Find tenement then Save match to build a full opportunity card here.</p>';
+    body.innerHTML = html;
+
+    document.querySelectorAll('.remove-combined-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        delete shortlist.combined[btn.getAttribute('data-key')];
+        await saveCombined();
+        renderShortlist();
+      });
+    });
+    document.querySelectorAll('.notes-field').forEach(field => {
+      field.addEventListener('change', async () => {
+        const key = field.getAttribute('data-key');
+        if (shortlist.combined[key]) {
+          shortlist.combined[key].notes = field.value;
+          await saveCombined();
+        }
+      });
+    });
+    document.querySelectorAll('.research-field').forEach(field => {
+      field.addEventListener('change', async () => {
+        const key = field.getAttribute('data-key');
+        if (shortlist.combined[key]) {
+          shortlist.combined[key].research = field.value;
+          await saveCombined();
+        }
+      });
+    });
+    document.querySelectorAll('.ai-research-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.getAttribute('data-key');
+        const opp = shortlist.combined[key];
+        if (!opp) return;
+        const field = document.querySelector(`.research-field[data-key="${key}"]`);
+        if (opp.research && field.value.trim()) {
+          if (!confirm('This will replace the existing research findings for this opportunity. Continue?')) return;
+        }
+        btn.textContent = 'Researching...';
+        btn.disabled = true;
+        try {
+          const resp = await fetch('/research', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ opportunity: opp }),
+          });
+          const data = await resp.json();
+          if (data.error) throw new Error(data.error);
+          field.value = data.research;
+          opp.research = data.research;
+          await saveCombined();
+        } catch (err) {
+          alert('Research failed: ' + err.message);
+        }
+        btn.textContent = 'AI research';
+        btn.disabled = false;
+      });
+    });
+    document.querySelectorAll('.pitch-field').forEach(field => {
+      field.addEventListener('change', async () => {
+        const key = field.getAttribute('data-key');
+        if (shortlist.combined[key]) {
+          shortlist.combined[key].sales_pitch = field.value;
+          await saveCombined();
+        }
+      });
+    });
+  }
+
+  function renderExclusions() {
+    const list = document.getElementById('exclusions-list');
+    if (!exclusions.length) {
+      list.innerHTML = '<p style="color:#7A7264; font-size:13px;">No exclusions yet. Add a term above, or click the &#10005; next to any row in Tenements or Minedex.</p>';
+      return;
+    }
+    let html = '<table style="width:100%; font-size:13px;"><tbody>';
+    exclusions.forEach((term, idx) => {
+      html += `<tr><td style="padding:8px 0; border-bottom:1px solid #E5E0D5;">${term}</td><td style="text-align:right; border-bottom:1px solid #E5E0D5;"><button class="remove-exclusion-btn" data-idx="${idx}" style="font-size:11px; padding:4px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; cursor:pointer;">Remove</button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    list.innerHTML = html;
+    document.querySelectorAll('.remove-exclusion-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        exclusions.splice(parseInt(btn.getAttribute('data-idx')), 1);
+        await saveExclusions();
+        renderExclusions();
+      });
+    });
+  }
+
+  function exportShortlist() {
+    const cRows = Object.values(shortlist.combined);
+    const tRows = Object.values(shortlist.tenements);
+    const mRows = Object.values(shortlist.minedex);
+    let csv = '';
+    if (cRows.length) {
+      const combinedHeaders = ['Site','Project','Commodity group','Target commodity','Stage','Tenement','Type','Status','Holder','Area','Area unit','Expires','MINEDEX link','Research findings','Notes','Sales pitch'];
+      csv += 'OPPORTUNITIES\n' + combinedHeaders.join(',') + '\n';
+      cRows.forEach(r => {
+        const vals = [r.site_name, r.project_name, r.commodity_group, r.target_commodity, r.site_stage, r.tenement_id, r.tenement_type, r.tenement_status, r.holder1, r.area, r.area_unit, r.end_date, r.web_link, r.research, r.notes, r.sales_pitch];
+        csv += vals.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
+      });
+      csv += '\n';
+    }
+    csv += 'DATASET,' + tenementCols.map(c=>c.label).join(',') + '\n';
+    tRows.forEach(r => { csv += 'Tenement,' + tenementCols.map(c=>`"${(r[c.key]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n'; });
+    csv += '\nDATASET,' + minedexCols.map(c=>c.label).join(',') + '\n';
+    mRows.forEach(r => { csv += 'Minedex,' + minedexCols.map(c=>`"${(r[c.key]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n'; });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'bt_shortlist.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function collectUnverifiedNames() {
+    const names = new Set();
+    state.tenements.rows.forEach(r => {
+      if (r.holder1 && !isMajorHolder(r.holder1) && !isExcluded(r)) names.add(r.holder1.trim());
+    });
+    state.minedex.rows.forEach(r => {
+      const entity = r.project_name || r.site_name;
+      if (entity && !isMajorProject(r) && !isExcluded(r)) names.add(entity.trim());
+    });
+    return Array.from(names).sort();
+  }
+
+  async function generateClientBrief() {
+    const statusEl = document.getElementById('brief-status');
+    const clientName = document.getElementById('brief-client-name').value.trim();
+    if (!clientName) {
+      statusEl.textContent = 'Enter a client name first.';
+      return;
+    }
+    const checked = Array.from(document.querySelectorAll('.brief-select-checkbox:checked')).map(cb => cb.getAttribute('data-key'));
+    const opportunities = checked.map(k => shortlist.combined[k]).filter(Boolean);
+    if (!opportunities.length) {
+      statusEl.textContent = 'No opportunities selected — check at least one card above, or switch to the Shortlist tab if none are showing.';
+      return;
+    }
+    statusEl.textContent = `Generating brief for ${opportunities.length} opportunit${opportunities.length===1?'y':'ies'}...`;
+    try {
+      const resp = await fetch('/generate-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientName, opportunities }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error || 'Generation failed');
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `BT_Brief_${clientName.replace(/[^a-z0-9]/gi,'_')}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      statusEl.textContent = 'Downloaded.';
+    } catch (err) {
+      statusEl.textContent = 'Failed: ' + err.message;
+    }
+  }
+
+  function exportUnverifiedNames() {
+    const names = collectUnverifiedNames();
+    if (!names.length) {
+      alert('No data loaded yet — refresh live data or upload a CSV on the Tenements or Minedex tab first.');
+      return;
+    }
+    const text = names.join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'unverified_names.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function runBulkVerify() {
+    const statusEl = document.getElementById('bulk-verify-status');
+    const resultsEl = document.getElementById('bulk-verify-results');
+    const btn = document.getElementById('run-bulk-verify-btn');
+
+    const names = collectUnverifiedNames();
+    if (!names.length) {
+      statusEl.textContent = 'No unverified names found — load data on the Tenements or Minedex tab first.';
+      return;
+    }
+
+    btn.disabled = true;
+    resultsEl.innerHTML = '';
+    let allResults = [];
+    const chunkSize = 15;
+    const totalChunks = Math.ceil(names.length / chunkSize);
+
+    for (let i = 0; i < names.length; i += chunkSize) {
+      const chunk = names.slice(i, i + chunkSize);
+      const chunkNum = Math.floor(i / chunkSize) + 1;
+      statusEl.textContent = `Verifying batch ${chunkNum} of ${totalChunks} (${allResults.length}/${names.length} done)...`;
+      try {
+        const resp = await fetch('/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names: chunk }),
+        });
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        allResults = allResults.concat(data.results || []);
+      } catch (err) {
+        statusEl.textContent = 'Batch failed: ' + err.message + ' — stopping here, results so far are shown below.';
+        break;
+      }
+      renderBulkVerifyResults(allResults);
+    }
+
+    statusEl.textContent = `Done — ${allResults.length} of ${names.length} names checked.`;
+    btn.disabled = false;
+  }
+
+  function renderBulkVerifyResults(results) {
+    const resultsEl = document.getElementById('bulk-verify-results');
+    const listed = results.filter(r => r.is_listed === true);
+    const unclear = results.filter(r => r.is_listed === null);
+    const clear = results.filter(r => r.is_listed === false);
+
+    let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Name</th><th>Verdict</th><th>Parent</th><th>Confidence</th><th>Note</th><th></th></tr></thead><tbody>';
+    listed.concat(unclear).concat(clear).forEach((r, idx) => {
+      const badge = r.is_listed === true
+        ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;">Listed</span>'
+        : r.is_listed === false
+        ? '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;">Private</span>'
+        : '<span style="font-size:10px; background:#D3D1C7; color:#2C2C2A; padding:2px 6px; border-radius:3px;">Unclear</span>';
+      html += `<tr><td>${r.name}</td><td>${badge}</td><td>${r.parent||''}</td><td>${r.confidence||''}</td><td>${r.note||''}</td><td>${r.is_listed===true?`<button class="add-verified-major-btn" data-name="${r.name.replace(/"/g,'&quot;')}" style="font-size:10px; padding:3px 8px; border:1px solid #14110D; background:#14110D; color:#A98D4B; border-radius:3px; cursor:pointer;">Add to list</button>`:''}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    resultsEl.innerHTML = html;
+
+    document.querySelectorAll('.add-verified-major-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.getAttribute('data-name');
+        if (!exclusions.some(t => t.toUpperCase() === name.toUpperCase())) {
+          exclusions.push(name);
+          await saveExclusions();
+        }
+        btn.textContent = 'Added';
+        btn.disabled = true;
+      });
+    });
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+      btn.classList.add('tab-active');
+      const tab = btn.getAttribute('data-tab');
+      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+      document.getElementById('panel-' + tab).style.display = 'block';
+      if (tab === 'shortlist') renderShortlist();
+      if (tab === 'exclusions') renderExclusions();
+    });
+  });
+  document.getElementById('export-shortlist').addEventListener('click', exportShortlist);
+  document.getElementById('export-unverified').addEventListener('click', exportUnverifiedNames);
+  document.getElementById('generate-brief-btn').addEventListener('click', generateClientBrief);
+  document.getElementById('add-exclusion-btn').addEventListener('click', async () => {
+    const input = document.getElementById('new-exclusion-input');
+    const term = input.value.trim();
+    if (!term) return;
+    if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
+      exclusions.push(term);
+      await saveExclusions();
+      renderExclusions();
+    }
+    input.value = '';
+  });
+  document.getElementById('new-exclusion-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('add-exclusion-btn').click();
+  });
+  loadExclusions();
+  document.getElementById('run-bulk-verify-btn').addEventListener('click', runBulkVerify);
+
+  setupUpload('tenements');
+  setupUpload('minedex');
+  document.getElementById('live-tenements').addEventListener('click', (e) => fetchLiveTenements(e.target));
+  document.getElementById('live-minedex').addEventListener('click', (e) => fetchLiveMinedex(e.target));
+  loadShortlist();
+})();
+</script>
+</body>
+</html>
