@@ -441,15 +441,30 @@
       el.innerHTML = `
         <div class="ctrl-row">
           <input type="text" id="search-minedex" placeholder="Search site, project..." style="width:220px;">
-          <select id="filter-commodity-minedex"><option value="">All commodity groups</option>${commodities.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+          <div style="position:relative; display:inline-block;">
+            <button type="button" id="commodity-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Commodity group <span id="commodity-multiselect-count"></span> &#9662;</button>
+            <div id="commodity-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+              ${commodities.map(c=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="commodity-checkbox" value="${c}"> ${c}</label>`).join('')}
+            </div>
+          </div>
           <div style="position:relative; display:inline-block;">
             <button type="button" id="mineral-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Minerals <span id="mineral-multiselect-count"></span> &#9662;</button>
             <div id="mineral-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
               ${targetTokens.map(t=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="mineral-checkbox" value="${t}"> ${t}</label>`).join('')}
             </div>
           </div>
-          <select id="filter-stage-minedex"><option value="">All stages</option>${stages.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-          <select id="filter-sitetype-minedex"><option value="">All site types</option>${siteTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+          <div style="position:relative; display:inline-block;">
+            <button type="button" id="stage-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Stage <span id="stage-multiselect-count"></span> &#9662;</button>
+            <div id="stage-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+              ${stages.map(s=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="stage-checkbox" value="${s}"> ${s}</label>`).join('')}
+            </div>
+          </div>
+          <div style="position:relative; display:inline-block;">
+            <button type="button" id="sitetype-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Site type <span id="sitetype-multiselect-count"></span> &#9662;</button>
+            <div id="sitetype-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+              ${siteTypes.map(t=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="sitetype-checkbox" value="${t}"> ${t}</label>`).join('')}
+            </div>
+          </div>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-minesonly-minedex"> Mines and deposits only</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-dedupe-minedex"> One row per project</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-viable-minedex"> Hide environment / remediation sites</label>
@@ -460,15 +475,10 @@
           <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
         </div>`;
       document.getElementById('search-minedex').addEventListener('input', e => { state.minedex.search = e.target.value.toLowerCase(); applyFilters('minedex'); });
-      document.getElementById('filter-commodity-minedex').addEventListener('change', e => { state.minedex.commodityFilter = e.target.value; applyFilters('minedex'); });
       document.getElementById('mineral-multiselect-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         const panel = document.getElementById('mineral-multiselect-panel');
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-      });
-      document.addEventListener('click', (e) => {
-        const panel = document.getElementById('mineral-multiselect-panel');
-        if (panel && !panel.contains(e.target) && e.target.id !== 'mineral-multiselect-btn') panel.style.display = 'none';
       });
       document.querySelectorAll('.mineral-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
@@ -478,8 +488,57 @@
           applyFilters('minedex');
         });
       });
-      document.getElementById('filter-stage-minedex').addEventListener('change', e => { state.minedex.stageFilter = e.target.value; applyFilters('minedex'); });
-      document.getElementById('filter-sitetype-minedex').addEventListener('change', e => { state.minedex.siteTypeFilter = e.target.value; applyFilters('minedex'); });
+
+      document.getElementById('commodity-multiselect-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.getElementById('commodity-multiselect-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+      document.querySelectorAll('.commodity-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const checked = Array.from(document.querySelectorAll('.commodity-checkbox:checked')).map(c => c.value);
+          state.minedex.commodityFilters = checked;
+          document.getElementById('commodity-multiselect-count').textContent = checked.length ? `(${checked.length})` : '';
+          applyFilters('minedex');
+        });
+      });
+
+      document.getElementById('stage-multiselect-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.getElementById('stage-multiselect-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+      document.querySelectorAll('.stage-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const checked = Array.from(document.querySelectorAll('.stage-checkbox:checked')).map(c => c.value);
+          state.minedex.stageFilters = checked;
+          document.getElementById('stage-multiselect-count').textContent = checked.length ? `(${checked.length})` : '';
+          applyFilters('minedex');
+        });
+      });
+
+      document.getElementById('sitetype-multiselect-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.getElementById('sitetype-multiselect-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+      document.querySelectorAll('.sitetype-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const checked = Array.from(document.querySelectorAll('.sitetype-checkbox:checked')).map(c => c.value);
+          state.minedex.siteTypeFilters = checked;
+          document.getElementById('sitetype-multiselect-count').textContent = checked.length ? `(${checked.length})` : '';
+          applyFilters('minedex');
+        });
+      });
+
+      // One document-level handler closes whichever multi-select panel is open
+      // when the click lands outside every panel and every toggle button.
+      document.addEventListener('click', (e) => {
+        ['mineral', 'commodity', 'stage', 'sitetype'].forEach(name => {
+          const panel = document.getElementById(name + '-multiselect-panel');
+          if (panel && !panel.contains(e.target) && e.target.id !== name + '-multiselect-btn') panel.style.display = 'none';
+        });
+      });
       document.getElementById('filter-minesonly-minedex').addEventListener('change', e => { state.minedex.minesOnly = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-dedupe-minedex').addEventListener('change', e => { state.minedex.dedupe = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-viable-minedex').addEventListener('change', e => { state.minedex.viableOnly = e.target.checked; applyFilters('minedex'); });
@@ -507,9 +566,9 @@
       if (s.offMarketOnly) rows = rows.filter(r => !isMajorHolder(r.holder1));
       if (s.hideExcluded) rows = rows.filter(r => !isExcluded(r));
     } else {
-      if (s.commodityFilter) rows = rows.filter(r => r.commodity_group === s.commodityFilter);
-      if (s.stageFilter) rows = rows.filter(r => r.site_stage === s.stageFilter);
-      if (s.siteTypeFilter) rows = rows.filter(r => r.site_type === s.siteTypeFilter);
+      if (s.commodityFilters && s.commodityFilters.length) rows = rows.filter(r => s.commodityFilters.includes(r.commodity_group));
+      if (s.stageFilters && s.stageFilters.length) rows = rows.filter(r => s.stageFilters.includes(r.site_stage));
+      if (s.siteTypeFilters && s.siteTypeFilters.length) rows = rows.filter(r => s.siteTypeFilters.includes(r.site_type));
       if (s.minesOnly) rows = rows.filter(r => { const t = (r.site_type||'').toUpperCase(); return t === 'MINE' || t === 'DEPOSIT'; });
       if (s.targetFilters && s.targetFilters.length) rows = rows.filter(r => { const hay = (r.target_commodity||'').toUpperCase(); return s.targetFilters.some(t => hay.includes(t.toUpperCase())); });
       if (s.search) rows = rows.filter(r => (r.site_name||'').toLowerCase().includes(s.search) || (r.project_name||'').toLowerCase().includes(s.search));
