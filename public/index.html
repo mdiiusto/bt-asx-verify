@@ -813,7 +813,10 @@
                   ? `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;" title="${(result.note||'').replace(/"/g,'&quot;')}">Private (AI)</span>`
                   : `<span style="font-size:10px; background:#D3D1C7; color:#2C2C2A; padding:2px 8px; border-radius:3px;" title="${(result.note||'').replace(/"/g,'&quot;')}">Unclear</span>`;
                 cell.innerHTML = badge;
-                aiVerifiedCache[holderName.toUpperCase()] = result;
+                // Only cache definitive results — don't cache null/unclear so they get retried on the next run instead of getting permanently stuck
+                if (result.is_listed === true || (result.is_listed === false && result.confidence === 'high')) {
+                  aiVerifiedCache[holderName.toUpperCase()] = result;
+                }
               }
               vBtn.textContent = 'Verified';
             } catch (err) {
@@ -1155,7 +1158,12 @@
       try {
         const resp = await fetch('/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names: chunk }) });
         const data = await resp.json();
-        (data.results||[]).forEach(r => { aiVerifiedCache[r.name.toUpperCase()] = r; });
+        (data.results||[]).forEach(r => {
+          // Only cache definitive results — don't cache null/unclear so they get retried on the next run instead of getting permanently stuck
+          if (r.is_listed === true || (r.is_listed === false && r.confidence === 'high')) {
+            aiVerifiedCache[r.name.toUpperCase()] = r;
+          }
+        });
       } catch (err) {
         statusEl.textContent = `Failed after ${checkedCount} of ${toCheck.length}: ${err.message}`;
         break;
@@ -1172,7 +1180,8 @@
       renderTable('minedex');
       statusEl.textContent = `Checked ${checkedCount} of ${toCheck.length} holders — ${removedCount} confirmed ASX-listed and removed. (${noTenementCount} rows had no tenement to verify.)`;
     }
-    statusEl.textContent = `Done — ${resolvedCount} rows checked, ${checkedCount} distinct holders verified, ${removedCount} confirmed ASX-listed and removed. ${noTenementCount} rows had no tenement match and were kept as unverified.`;
+    const uncachedCount = toCheck.filter(n => !aiVerifiedCache[n.toUpperCase()]).length;
+    statusEl.textContent = `Done — ${resolvedCount} rows checked, ${checkedCount} holders checked, ${removedCount} confirmed ASX-listed and removed, ${uncachedCount} came back uncertain and will be retried next run. ${noTenementCount} rows had no tenement match.`;
     btn.disabled = false;
   }
 
