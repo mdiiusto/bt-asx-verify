@@ -1,5 +1,6 @@
 // Blackwood & Terrace — Deal Sourcing Server
 // -----------------------------------------------------------------
+// (Node/Express; run with `npm start`.)
 // Serves the workbench frontend and runs three AI-backed jobs:
 //   POST /verify          — bulk ASX/listed-status check on a list of names
 //   POST /research        — deep research on a single opportunity
