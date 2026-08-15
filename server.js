@@ -17,6 +17,119 @@ const BATCH_SIZE = 15;
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.ANTHROPIC_API_KEY;
 
+// DMIRS SLIP public endpoints — layer 0 is Minedex sites, layer 3 is tenements.
+const MINEDEX_URL = "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/0/query";
+const TENEMENT_URL = "https://services.slip.wa.gov.au/public/rest/services/SLIP_Public_Services/Industry_and_Mining/MapServer/3/query";
+
+// Kept in sync with the same list in public/index.html.
+const MAJOR_HOLDERS = [
+  'BHP', 'RIO TINTO', 'FORTESCUE', 'FMG', 'NORTHERN STAR', 'NEWCREST',
+  'SOUTH32', 'IGO LIMITED', 'IGO LTD', 'MINERAL RESOURCES', 'EVOLUTION MINING',
+  'REGIS RESOURCES', 'GOLD FIELDS', 'NEWMONT', 'ILUKA', 'SANDFIRE',
+  'OZ MINERALS', '29METALS', '29 METALS', 'GOLDEN GROVE OPERATIONS',
+  'PANORAMIC', 'CHALICE MINING', 'RAMELIUS', 'ST BARBARA', 'SILVER LAKE',
+  'GENESIS MINERALS', 'CAPRICORN METALS', 'WEST AFRICAN RESOURCES',
+  'PERSEUS MINING', 'ALCOA', 'ALUMINA LIMITED', 'TIANQI', 'ALBEMARLE',
+  'PILBARA MINERALS', 'LIONTOWN', 'MINRES', 'WESFARMERS', 'CITIC',
+  'HANCOCK', 'ROY HILL', 'ATLAS IRON', 'MOUNT GIBSON', 'CHAMPION IRON',
+  'GINA RINEHART', 'TALISON', 'GALAXY RESOURCES', 'ALLKEM', 'ARCADIUM',
+  'IMDEX', 'ERAMET', 'GLENCORE', 'ANGLO AMERICAN', 'VALE',
+  'AERIS RESOURCES', 'ROUND OAK', 'LITHIUM AUSTRALIA', 'LITHOPHILE',
+  'VENTUREX', 'DEVELOP GLOBAL', 'ANAX METALS', 'WHIM CREEK METALS',
+  'HORSESHOE METALS', 'MURCHISON COPPER MINES',
+];
+
+function isMajorHolder(name) {
+  if (!name) return false;
+  const upper = name.toUpperCase();
+  return MAJOR_HOLDERS.some(m => upper.includes(m));
+}
+
+function isMajorProject(row) {
+  const haystack = [row.project_name, row.site_name, row.short_name].filter(Boolean).join(' ');
+  return isMajorHolder(haystack);
+}
+
+function esriMsToDate(ms) {
+  if (!ms) return '';
+  try { return new Date(ms).toISOString().slice(0, 10); } catch (e) { return ''; }
+}
+
+// Pulls the full Minedex site list from DMIRS, paging until a short page comes
+// back. Mirrors fetchLiveMinedex() in public/index.html.
+async function fetchLiveMinedexServer() {
+  const outFields = 'oid,gid,site_code,site_title,short_name,site_commo,site_type_,site_sub_t,site_stage,target_com,commodity,proj_code,proj_title,confidenti,point_conf,latitude,longitude,web_link,extract_da';
+  let offset = 0;
+  const pageSize = 2000;
+  const all = [];
+  while (true) {
+    const params = new URLSearchParams({
+      where: '1=1',
+      outFields,
+      returnGeometry: 'false',
+      f: 'json',
+      resultOffset: offset,
+      resultRecordCount: pageSize,
+      orderByFields: 'oid',
+    });
+    const resp = await fetch(MINEDEX_URL + '?' + params.toString());
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Server error');
+    const feats = data.features || [];
+    feats.forEach(f => all.push(f.attributes));
+    if (feats.length < pageSize) break;
+    offset += feats.length;
+  }
+  return all.map(a => ({
+    site_code: a.site_code, site_name: a.site_title, short_name: a.short_name,
+    site_commodity_summary: a.site_commo, site_type: a.site_type_, site_sub_type: a.site_sub_t,
+    site_stage: a.site_stage, target_commodity: a.target_com, commodity_group: a.commodity,
+    project_code: a.proj_code, project_name: a.proj_title, confidentiality: a.confidenti,
+    point_confidence: a.point_conf, latitude: a.latitude, longitude: a.longitude,
+    web_link: a.web_link, extract_date: esriMsToDate(a.extract_da),
+  }));
+}
+
+// Mirrors fetchTenementsAtPoint() in public/index.html.
+async function fetchTenementsAtPointServer(lat, lon) {
+  if (isNaN(lat) || isNaN(lon)) return [];
+  const url = `${TENEMENT_URL}?geometry=${lon}%2C${lat}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=tenid,fmt_tenid,type,tenstatus,holder1,legal_area,unit_of_me,enddate&returnGeometry=false&f=json`;
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    return ((data && data.features) || []).map(f => f.attributes);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Mirrors collectClientCandidates() in public/index.html. The client-side
+// exclusions list is a browser-local preference, so it has no equivalent here.
+function collectCandidatesServer(rows, minerals, stages) {
+  const tokens = minerals.map(m => m.trim().toUpperCase()).filter(Boolean);
+  const stageSet = new Set(stages);
+  const stageOrder = ['Operating', 'Under Development', 'Care and Maintenance', 'Proposed', 'Undeveloped'];
+  let candidates = rows.filter(r => {
+    if (!stageSet.has(r.site_stage)) return false;
+    const hay = ((r.target_commodity || '') + ' ' + (r.commodity_group || '')).toUpperCase();
+    if (tokens.length && !tokens.some(t => hay.includes(t))) return false;
+    if (isMajorProject(r)) return false;
+    const t = (r.site_type || '').toUpperCase();
+    if (t && t !== 'MINE' && t !== 'DEPOSIT') return false;
+    return true;
+  });
+  const seen = new Set();
+  candidates = candidates.filter(r => {
+    const key = (r.project_name || r.site_name || '').toUpperCase();
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  candidates.sort((a, b) => stageOrder.indexOf(a.site_stage) - stageOrder.indexOf(b.site_stage));
+  return candidates;
+}
+
 // CORS — allow calls from your hosted tool. Once deployed, you can tighten
 // this to your exact domain (e.g. "https://blackwoodterrace.com.au")
 // instead of "*" for better security.
@@ -66,6 +179,38 @@ app.post("/research", async (req, res) => {
     res.json({ research: text });
   } catch (err) {
     res.status(500).json({ error: err.message || "Research failed" });
+  }
+});
+
+app.post("/find-candidates", async (req, res) => {
+  const minerals = Array.isArray(req.body.minerals) ? req.body.minerals : [];
+  const stages = Array.isArray(req.body.stages) ? req.body.stages : [];
+  if (!minerals.length || !stages.length) {
+    return res.status(400).json({ error: "minerals and stages are required" });
+  }
+  try {
+    const rows = await fetchLiveMinedexServer();
+    const candidates = collectCandidatesServer(rows, minerals, stages);
+    const capped = candidates.slice(0, 30);
+    const enriched = [];
+    for (const cand of capped) {
+      const lat = parseFloat(cand.latitude), lon = parseFloat(cand.longitude);
+      const tenements = isNaN(lat) || isNaN(lon) ? [] : await fetchTenementsAtPointServer(lat, lon);
+      const primaryTen = tenements[0] || null;
+      const holderIsMajor = primaryTen ? isMajorHolder(primaryTen.holder1) : false;
+      enriched.push({
+        candidate: cand,
+        tenement: primaryTen,
+        holderIsMajor,
+      });
+    }
+    res.json({
+      totalMatched: candidates.length,
+      researched: enriched.length,
+      candidates: enriched,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Candidate search failed" });
   }
 });
 

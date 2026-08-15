@@ -1054,31 +1054,40 @@
     if (!minerals.length) { statusEl.textContent = 'Enter at least one mineral.'; return; }
     if (!stages.length) { statusEl.textContent = 'Select at least one stage.'; return; }
 
-    if (!state.minedex.rows.length) {
-      statusEl.textContent = 'Loading Minedex data first — this takes a minute...';
-      await fetchLiveMinedex(document.getElementById('live-minedex'));
-    }
-
-    const candidates = collectClientCandidates(minerals, stages);
-    if (!candidates.length) {
-      statusEl.textContent = 'No candidates matched — try broader minerals or stages.';
-      resultsEl.innerHTML = '';
-      return;
-    }
-
-    const capped = candidates.slice(0, 20);
+    statusEl.textContent = 'Pulling live DMIRS data and filtering candidates on the server...';
     resultsEl.innerHTML = '';
     btn.disabled = true;
+
+    let capped, totalMatched = 0;
+    try {
+      const searchResp = await fetch('/find-candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ minerals, stages }),
+      });
+      const searchData = await searchResp.json();
+      if (searchData.error) throw new Error(searchData.error);
+      if (!searchData.candidates.length) {
+        statusEl.textContent = 'No candidates matched — try broader minerals or stages.';
+        btn.disabled = false;
+        return;
+      }
+      capped = searchData.candidates.map(item => ({ candidate: item.candidate, tenement: item.tenement }));
+      totalMatched = searchData.totalMatched;
+      statusEl.textContent = `Server matched ${searchData.totalMatched} candidates from live DMIRS data (researching top ${capped.length})...`;
+    } catch (err) {
+      statusEl.textContent = 'Candidate search failed: ' + err.message;
+      btn.disabled = false;
+      return;
+    }
 
     const criteriaText = `Value range: ${valueMin || 'not specified'} to ${valueMax || 'not specified'} AUD. Stages requested: ${stages.join(', ')}. Minerals: ${minerals.join(', ')}.${notes ? ' Additional notes: ' + notes : ''}`;
 
     const resultsData = [];
     for (let i = 0; i < capped.length; i++) {
-      const cand = capped[i];
+      const cand = capped[i].candidate;
+      const primaryTen = capped[i].tenement;
       statusEl.textContent = `Researching ${i + 1} of ${capped.length}: ${cand.site_name || cand.project_name}...`;
-      const lat = parseFloat(cand.latitude), lon = parseFloat(cand.longitude);
-      const tenements = await fetchTenementsAtPoint(lat, lon);
-      const primaryTen = tenements[0] || null;
       let research = '';
       try {
         const resp = await fetch('/research', {
@@ -1097,7 +1106,7 @@
       resultsData.push({ candidate: cand, tenement: primaryTen, research });
       renderClientResults(resultsData);
     }
-    statusEl.textContent = `Done — ${resultsData.length} candidate${resultsData.length===1?'':'s'} checked, found ${candidates.length} total match${candidates.length===1?'':'es'} (top ${capped.length} researched).`;
+    statusEl.textContent = `Done — ${resultsData.length} candidate${resultsData.length===1?'':'s'} checked, found ${totalMatched} total match${totalMatched===1?'':'es'} (top ${capped.length} researched).`;
     btn.disabled = false;
   }
 
