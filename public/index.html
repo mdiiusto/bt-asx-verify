@@ -698,6 +698,10 @@
         if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
           exclusions.push(term);
           await saveExclusions();
+          if (state.tenements.hideExcluded === undefined) state.tenements.hideExcluded = true;
+          if (state.minedex.hideExcluded === undefined) state.minedex.hideExcluded = true;
+          applyFilters('tenements');
+          applyFilters('minedex');
         }
       });
     });
@@ -758,15 +762,16 @@
         insertDetailRow(tr, '<span style="color:#7A7264;">No live or pending tenement found at this location.</span>', dataset);
       } else {
         locateCache[rowIdx] = feats.map(f => f.attributes);
-        const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(row.project_name || row.site_name || '');
-        let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Market</th><th>Tenement</th><th>Type</th><th>Status</th><th>Holder</th><th>Area</th><th>Expires</th><th></th></tr></thead><tbody>';
+        const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(`"${row.project_name || row.site_name || ''}" mine Western Australia WA mining -wikipedia`);
+        let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Market</th><th>Tenement</th><th>Type</th><th>Status</th><th>Holder</th><th>Area</th><th>Expires</th><th></th><th></th></tr></thead><tbody>';
         feats.forEach((f, matchIdx) => {
           const a = f.attributes;
           const major = isMajorHolder(a.holder1);
           const badge = major
             ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;" title="Matches a known ASX-listed company or subsidiary name">ASX-listed</span>'
             : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;" title="Not matched to a known ASX major — does not confirm the holder is actually private. Verify via ASIC search before treating as an off-market lead.">Unverified</span>';
-          html += `<tr><td>${badge}</td><td>${a.fmt_tenid||a.tenid||''}</td><td>${a.type||''}</td><td>${a.tenstatus||''}</td><td>${a.holder1||''}</td><td>${a.legal_area||''} ${a.unit_of_me||''}</td><td>${esriMsToDate(a.enddate)}</td><td><button class="save-match-btn" data-mrow="${rowIdx}" data-tidx="${matchIdx}" style="font-size:10px; padding:3px 8px; border:1px solid #14110D; background:#14110D; color:#A98D4B; border-radius:3px; cursor:pointer;">Save match</button></td></tr>`;
+          const holderSearchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(`"${a.holder1 || ''}" "${row.project_name || row.site_name || ''}" mining ASIC -wikipedia`);
+          html += `<tr data-holder-row="${rowIdx}-${matchIdx}"><td class="holder-verify-cell">${badge}</td><td>${a.fmt_tenid||a.tenid||''}</td><td>${a.type||''}</td><td>${a.tenstatus||''}</td><td>${a.holder1||''}</td><td>${a.legal_area||''} ${a.unit_of_me||''}</td><td>${esriMsToDate(a.enddate)}</td><td><button class="save-match-btn" data-mrow="${rowIdx}" data-tidx="${matchIdx}" style="font-size:10px; padding:3px 8px; border:1px solid #14110D; background:#14110D; color:#A98D4B; border-radius:3px; cursor:pointer;">Save match</button></td><td><button class="verify-holder-btn" data-holder="${(a.holder1||'').replace(/"/g,'&quot;')}" data-cell-target="${rowIdx}-${matchIdx}" style="font-size:10px; padding:3px 8px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:3px; cursor:pointer;">Verify holder (AI)</button> <a href="${holderSearchUrl}" target="_blank" style="font-size:10px; color:#7A7264; margin-left:4px;">or manually &#8599;</a></td></tr>`;
         });
         html += '</tbody></table>';
         html += `<div style="margin-top:8px; display:flex; gap:14px;">`;
@@ -781,6 +786,40 @@
             await saveCombinedMatch(row, locateCache[rowIdx][tIdx]);
             saveBtn.textContent = 'Saved';
             saveBtn.disabled = true;
+          });
+        });
+
+        document.querySelectorAll('.verify-holder-btn').forEach(vBtn => {
+          vBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const holderName = vBtn.getAttribute('data-holder');
+            if (!holderName) return;
+            vBtn.textContent = 'Checking...';
+            vBtn.disabled = true;
+            try {
+              const resp = await fetch('/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ names: [holderName] }),
+              });
+              const data = await resp.json();
+              const result = (data.results || [])[0];
+              const targetKey = vBtn.getAttribute('data-cell-target');
+              const cell = document.querySelector(`tr[data-holder-row="${targetKey}"] .holder-verify-cell`);
+              if (result && cell) {
+                const badge = result.is_listed === true
+                  ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;" title="${(result.note||'').replace(/"/g,'&quot;')}">ASX-listed (AI)</span>`
+                  : result.is_listed === false
+                  ? `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;" title="${(result.note||'').replace(/"/g,'&quot;')}">Private (AI)</span>`
+                  : `<span style="font-size:10px; background:#D3D1C7; color:#2C2C2A; padding:2px 8px; border-radius:3px;" title="${(result.note||'').replace(/"/g,'&quot;')}">Unclear</span>`;
+                cell.innerHTML = badge;
+                aiVerifiedCache[holderName.toUpperCase()] = result;
+              }
+              vBtn.textContent = 'Verified';
+            } catch (err) {
+              vBtn.textContent = 'Failed — retry';
+              vBtn.disabled = false;
+            }
           });
         });
       }
@@ -1202,6 +1241,10 @@
         if (!exclusions.some(t => t.toUpperCase() === name.toUpperCase())) {
           exclusions.push(name);
           await saveExclusions();
+          if (state.tenements.hideExcluded === undefined) state.tenements.hideExcluded = true;
+          if (state.minedex.hideExcluded === undefined) state.minedex.hideExcluded = true;
+          applyFilters('tenements');
+          applyFilters('minedex');
         }
         btn.textContent = 'Added';
         btn.disabled = true;
@@ -1230,6 +1273,10 @@
     if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
       exclusions.push(term);
       await saveExclusions();
+      if (state.tenements.hideExcluded === undefined) state.tenements.hideExcluded = true;
+      if (state.minedex.hideExcluded === undefined) state.minedex.hideExcluded = true;
+      applyFilters('tenements');
+      applyFilters('minedex');
       renderExclusions();
     }
     input.value = '';
