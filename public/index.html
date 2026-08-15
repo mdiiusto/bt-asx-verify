@@ -21,6 +21,8 @@
     <button class="tab-btn" data-tab="exclusions">Exclusions <span id="exclusions-count" style="font-size: 11px;"></span></button>
   </div>
 
+  <div id="global-status" style="display:none; background:#14110D; color:#A98D4B; padding:10px 16px; border-radius:4px; margin-bottom:16px; font-size:13px;"></div>
+
   <div id="panel-clientbrief" class="panel">
     <p style="margin:0 0 16px; font-size:13px; color:#7A7264;">Give me the client's criteria and I'll search the loaded data, verify ownership on candidates, pull whatever resource/scale detail is publicly available, and hand you a vetted, ranked shortlist — sourced, not guessed.</p>
 
@@ -1043,9 +1045,7 @@
   }
 
   async function runClientSearch() {
-    document.getElementById('cb-server-status').innerHTML = '';
     const statusEl = document.getElementById('cb-status');
-    const resultsEl = document.getElementById('cb-results');
     const btn = document.getElementById('cb-run-btn');
     const minerals = document.getElementById('cb-minerals').value.split(',').map(s => s.trim()).filter(Boolean);
     const stages = Array.from(document.querySelectorAll('.cb-stage:checked')).map(cb => cb.value);
@@ -1056,60 +1056,77 @@
     if (!minerals.length) { statusEl.textContent = 'Enter at least one mineral.'; return; }
     if (!stages.length) { statusEl.textContent = 'Select at least one stage.'; return; }
 
-    statusEl.textContent = 'Pulling live DMIRS data and filtering candidates on the server...';
-    resultsEl.innerHTML = '';
     btn.disabled = true;
+    document.getElementById('cb-server-status').innerHTML = '';
+    setGlobalStatus('Pulling live DMIRS data and filtering candidates on the server...');
 
-    let capped, totalMatched = 0;
+    let searchData;
     try {
       const searchResp = await fetch('/find-candidates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ minerals, stages }),
       });
-      const searchData = await searchResp.json();
+      searchData = await searchResp.json();
       if (searchData.error) throw new Error(searchData.error);
-      if (!searchData.candidates.length) {
-        statusEl.textContent = 'No candidates matched — try broader minerals or stages.';
-        btn.disabled = false;
-        return;
-      }
-      capped = searchData.candidates.map(item => ({ candidate: item.candidate, tenement: item.tenement }));
-      totalMatched = searchData.totalMatched;
-      statusEl.textContent = `Server matched ${searchData.totalMatched} candidates from live DMIRS data (researching top ${capped.length})...`;
-      document.getElementById('cb-server-status').innerHTML = `<div style="background:#EFEBE3; border:1px solid #C9C3B5; border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:12px; color:#14110D;"><b>Server-side result:</b> pulled live DMIRS data, matched ${searchData.totalMatched} candidates, researching top ${capped.length} now.</div>`;
     } catch (err) {
-      statusEl.textContent = 'Candidate search failed: ' + err.message;
+      setGlobalStatus('Search failed: ' + err.message);
+      statusEl.textContent = 'Search failed: ' + err.message;
       btn.disabled = false;
       return;
     }
 
-    const criteriaText = `Value range: ${valueMin || 'not specified'} to ${valueMax || 'not specified'} AUD. Stages requested: ${stages.join(', ')}. Minerals: ${minerals.join(', ')}.${notes ? ' Additional notes: ' + notes : ''}`;
-
-    const resultsData = [];
-    for (let i = 0; i < capped.length; i++) {
-      const cand = capped[i].candidate;
-      const primaryTen = capped[i].tenement;
-      statusEl.textContent = `Researching ${i + 1} of ${capped.length}: ${cand.site_name || cand.project_name}...`;
-      let research = '';
-      try {
-        const resp = await fetch('/research', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            opportunity: { ...cand, tenement_id: primaryTen ? (primaryTen.fmt_tenid || primaryTen.tenid) : '', holder1: primaryTen ? primaryTen.holder1 : '' },
-            clientCriteria: criteriaText,
-          }),
-        });
-        const data = await resp.json();
-        research = data.research || data.error || 'No research returned.';
-      } catch (err) {
-        research = 'Research failed: ' + err.message;
-      }
-      resultsData.push({ candidate: cand, tenement: primaryTen, research });
-      renderClientResults(resultsData);
+    if (!searchData.candidates.length) {
+      setGlobalStatus('No candidates matched — try broader minerals or stages.');
+      btn.disabled = false;
+      return;
     }
-    statusEl.textContent = `Done — ${resultsData.length} candidate${resultsData.length===1?'':'s'} checked, found ${totalMatched} total match${totalMatched===1?'':'es'} (top ${capped.length} researched).`;
+
+    const candidates = searchData.candidates; // [{ candidate, tenement, holderIsMajor }]
+
+    // Step 1: populate and show Tenements tab
+    setGlobalStatus(`Populating Tenements tab with ${candidates.length} matched tenement records...`);
+    switchToTab('tenements');
+    const tenRows = candidates.filter(c => c.tenement).map(c => {
+      const t = c.tenement;
+      return {
+        tenement_id: t.tenid, tenement_id_formatted: t.fmt_tenid || t.tenid,
+        tenement_type: t.type, tenement_status: t.tenstatus,
+        holder_count: '', holder1: t.holder1,
+        area: t.legal_area, area_unit: t.unit_of_me,
+        grant_date: '', start_date: '', end_date: esriMsToDate(t.enddate),
+      };
+    });
+    state.tenements.rows = tenRows;
+    state.tenements.filtered = tenRows;
+    state.tenements.page = 0;
+    document.getElementById('status-tenements').textContent = `${tenRows.length} tenement(s) loaded from client search results`;
+    buildControls('tenements');
+    renderTable('tenements');
+    await new Promise(r => setTimeout(r, 1800));
+
+    // Step 2: populate and show Minedex tab
+    setGlobalStatus(`Populating Minedex tab with ${candidates.length} matched project records...`);
+    switchToTab('minedex');
+    const mdRows = candidates.map(c => c.candidate);
+    state.minedex.rows = mdRows;
+    state.minedex.filtered = mdRows;
+    state.minedex.page = 0;
+    document.getElementById('status-minedex').textContent = `${mdRows.length} record(s) loaded from client search results`;
+    buildControls('minedex');
+    renderTable('minedex');
+    await new Promise(r => setTimeout(r, 1800));
+
+    // Step 3: build shortlist from candidates, unresearched — land here for manual vetting
+    setGlobalStatus(`Building shortlist — ${candidates.length} candidates ready to vet...`);
+    switchToTab('shortlist');
+    for (const c of candidates) {
+      const tenAttrs = c.tenement || { fmt_tenid: '', tenid: '', type: '', tenstatus: '', holder1: '', legal_area: '', unit_of_me: '', enddate: null };
+      await saveCombinedMatch(c.candidate, tenAttrs);
+    }
+    renderShortlist();
+
+    setGlobalStatus(`Done — ${candidates.length} candidates in shortlist from live DMIRS data (matched ${searchData.totalMatched} total). Star or exclude each one, then use "AI research" on any card to dig deeper.`);
     btn.disabled = false;
   }
 
@@ -1252,16 +1269,24 @@
     });
   }
 
+  function switchToTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+    const targetBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    if (targetBtn) targetBtn.classList.add('tab-active');
+    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+    document.getElementById('panel-' + tab).style.display = 'block';
+    if (tab === 'shortlist') renderShortlist();
+    if (tab === 'exclusions') renderExclusions();
+  }
+  function setGlobalStatus(text) {
+    const el = document.getElementById('global-status');
+    if (!text) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.textContent = text;
+  }
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
-      btn.classList.add('tab-active');
-      const tab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-      document.getElementById('panel-' + tab).style.display = 'block';
-      if (tab === 'shortlist') renderShortlist();
-      if (tab === 'exclusions') renderExclusions();
-    });
+    btn.addEventListener('click', () => switchToTab(btn.getAttribute('data-tab')));
   });
   document.getElementById('export-shortlist').addEventListener('click', exportShortlist);
   document.getElementById('export-unverified').addEventListener('click', exportUnverifiedNames);
