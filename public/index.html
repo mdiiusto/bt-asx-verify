@@ -62,6 +62,16 @@
       </div>
     </div>
 
+    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:16px;">
+      <p style="margin:0 0 8px; font-size:13px; font-weight:bold;">Generate client brief</p>
+      <p style="margin:0 0 10px; font-size:12px; color:#7A7264;">Builds a branded Word document from your saved shortlist (star icons above, or previously saved opportunities), including research findings and sales pitch angles. Review and edit individual opportunities in the Shortlist tab first if you want to add notes.</p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="brief-client-name" placeholder="Client name (e.g. Godfrey Mwindaare)" style="flex:1; min-width:200px; padding:8px;">
+        <button id="generate-brief-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Generate Word brief</button>
+        <span id="brief-status" style="font-size:12px; color:#7A7264;"></span>
+      </div>
+    </div>
+
     <div id="cb-results"></div>
   </div>
 
@@ -95,18 +105,9 @@
 
   <div id="panel-shortlist" class="panel" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <p style="margin:0; font-size:13px; color:#7A7264;">Starred rows from both datasets. Notes are saved automatically.</p>
+      <p style="margin:0; font-size:13px; color:#7A7264;">Starred rows from both datasets. Notes are saved automatically, Generate the client Word brief from the Client Brief tab.</p>
       <button id="export-shortlist" style="background:#14110D; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Export shortlist CSV</button>
       <button id="export-unverified" style="background:#fff; color:#14110D; border:1px solid #A98D4B; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer; margin-left:8px;">Export unverified names</button>
-    </div>
-    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:16px;">
-      <p style="margin:0 0 8px; font-size:13px; font-weight:bold;">Generate client brief</p>
-      <p style="margin:0 0 10px; font-size:12px; color:#7A7264;">Builds a branded Word document from every Opportunity card below (select which ones with the checkboxes that appear once you click here), including research findings and sales pitch angles.</p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input type="text" id="brief-client-name" placeholder="Client name (e.g. Godfrey Mwindaare)" style="flex:1; min-width:200px; padding:8px;">
-        <button id="generate-brief-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Generate Word brief</button>
-        <span id="brief-status" style="font-size:12px; color:#7A7264;"></span>
-      </div>
     </div>
     <div id="shortlist-body"></div>
   </div>
@@ -1275,7 +1276,7 @@
   setupUpload('minedex');
   document.getElementById('live-tenements').addEventListener('click', (e) => fetchLiveTenements(e.target));
   document.getElementById('live-minedex').addEventListener('click', (e) => fetchLiveMinedex(e.target));
-  loadShortlist();
+  loadShortlist().then(() => renderShortlist());
 })();
 </script>
 </body>
