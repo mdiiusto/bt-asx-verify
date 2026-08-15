@@ -14,71 +14,13 @@
 
 
   <div id="tabs" style="display: flex; gap: 4px; margin-bottom: 16px;">
-    <button class="tab-btn tab-active" data-tab="clientbrief">Client Brief</button>
-    <button class="tab-btn" data-tab="tenements">Tenements</button>
+    <button class="tab-btn tab-active" data-tab="tenements">Tenements</button>
     <button class="tab-btn" data-tab="minedex">Minedex</button>
     <button class="tab-btn" data-tab="shortlist">Shortlist <span id="shortlist-count" style="font-size: 11px;"></span></button>
     <button class="tab-btn" data-tab="exclusions">Exclusions <span id="exclusions-count" style="font-size: 11px;"></span></button>
   </div>
 
-  <div id="global-status" style="display:none; background:#14110D; color:#A98D4B; padding:10px 16px; border-radius:4px; margin-bottom:16px; font-size:13px;"></div>
-
-  <div id="panel-clientbrief" class="panel">
-    <p style="margin:0 0 16px; font-size:13px; color:#7A7264;">Give me the client's criteria and I'll search the loaded data, verify ownership on candidates, pull whatever resource/scale detail is publicly available, and hand you a vetted, ranked shortlist — sourced, not guessed.</p>
-
-    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:16px 18px; margin-bottom:16px;">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-        <div>
-          <label style="font-size:12px; color:#7A7264; display:block; margin-bottom:4px;">Client name</label>
-          <input type="text" id="cb-client-name" placeholder="e.g. Godfrey Mwindaare" style="width:100%; padding:8px;">
-        </div>
-        <div>
-          <label style="font-size:12px; color:#7A7264; display:block; margin-bottom:4px;">Minerals (comma-separated)</label>
-          <input type="text" id="cb-minerals" placeholder="e.g. copper, cobalt, lithium" style="width:100%; padding:8px;">
-        </div>
-        <div>
-          <label style="font-size:12px; color:#7A7264; display:block; margin-bottom:4px;">Value range (AUD, informational)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="text" id="cb-value-min" placeholder="Min e.g. 50M" style="width:100%; padding:8px;">
-            <input type="text" id="cb-value-max" placeholder="Max e.g. 500M" style="width:100%; padding:8px;">
-          </div>
-        </div>
-        <div>
-          <label style="font-size:12px; color:#7A7264; display:block; margin-bottom:4px;">Stages</label>
-          <div style="display:flex; gap:12px; flex-wrap:wrap; padding-top:6px;">
-            <label style="font-size:12px;"><input type="checkbox" class="cb-stage" value="Operating" checked> Operating</label>
-            <label style="font-size:12px;"><input type="checkbox" class="cb-stage" value="Under Development" checked> Under Development</label>
-            <label style="font-size:12px;"><input type="checkbox" class="cb-stage" value="Care and Maintenance"> Care and Maintenance</label>
-            <label style="font-size:12px;"><input type="checkbox" class="cb-stage" value="Proposed"> Proposed</label>
-            <label style="font-size:12px;"><input type="checkbox" class="cb-stage" value="Undeveloped"> Undeveloped</label>
-          </div>
-        </div>
-        <div style="grid-column:span 2;">
-          <label style="font-size:12px; color:#7A7264; display:block; margin-bottom:4px;">Anything else the client specified (region, timeline, exclusions, reason for interest...)</label>
-          <textarea id="cb-notes" rows="2" style="width:100%; padding:8px; font-family:inherit; font-size:13px;" placeholder="e.g. Pilbara or Goldfields preferred; wants exposure to battery metals supply chain; needs to be genuinely private, not JV'd to a major"></textarea>
-        </div>
-      </div>
-      <div style="margin-top:14px; display:flex; align-items:center; gap:12px;">
-        <button id="cb-run-btn" style="background:#14110D; color:#A98D4B; border:none; padding:10px 20px; border-radius:4px; font-size:13px; cursor:pointer; font-weight:bold;">Search &amp; vet candidates</button>
-        <span id="cb-status" style="font-size:12px; color:#7A7264;"></span>
-      </div>
-    </div>
-
-    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:16px;">
-      <p style="margin:0 0 8px; font-size:13px; font-weight:bold;">Generate client brief</p>
-      <p style="margin:0 0 10px; font-size:12px; color:#7A7264;">Builds a branded Word document from your saved shortlist (star icons above, or previously saved opportunities), including research findings and sales pitch angles. Review and edit individual opportunities in the Shortlist tab first if you want to add notes.</p>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <input type="text" id="brief-client-name" placeholder="Client name (e.g. Godfrey Mwindaare)" style="flex:1; min-width:200px; padding:8px;">
-        <button id="generate-brief-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Generate Word brief</button>
-        <span id="brief-status" style="font-size:12px; color:#7A7264;"></span>
-      </div>
-    </div>
-
-    <div id="cb-server-status"></div>
-    <div id="cb-results"></div>
-  </div>
-
-  <div id="panel-tenements" class="panel" style="display:none;">
+  <div id="panel-tenements" class="panel">
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
       <button id="live-tenements" style="padding:8px 16px; background:#14110D; color:#A98D4B; border:none; border-radius:4px; font-size:13px; cursor:pointer;">Refresh live data from DMIRS</button>
       <span style="font-size:12px; color:#7A7264;">or upload a CSV below</span>
@@ -108,9 +50,18 @@
 
   <div id="panel-shortlist" class="panel" style="display:none;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <p style="margin:0; font-size:13px; color:#7A7264;">Starred rows from both datasets. Notes are saved automatically, Generate the client Word brief from the Client Brief tab.</p>
+      <p style="margin:0; font-size:13px; color:#7A7264;">Starred rows from both datasets. Notes are saved automatically.</p>
       <button id="export-shortlist" style="background:#14110D; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Export shortlist CSV</button>
       <button id="export-unverified" style="background:#fff; color:#14110D; border:1px solid #A98D4B; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer; margin-left:8px;">Export unverified names</button>
+    </div>
+    <div style="background:#FAF8F4; border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:16px;">
+      <p style="margin:0 0 8px; font-size:13px; font-weight:bold;">Generate client brief</p>
+      <p style="margin:0 0 10px; font-size:12px; color:#7A7264;">Builds a branded Word document from every Opportunity card below (select which ones with the checkboxes that appear once you click here), including research findings and sales pitch angles.</p>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="brief-client-name" placeholder="Client name (e.g. Godfrey Mwindaare)" style="flex:1; min-width:200px; padding:8px;">
+        <button id="generate-brief-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Generate Word brief</button>
+        <span id="brief-status" style="font-size:12px; color:#7A7264;"></span>
+      </div>
     </div>
     <div id="shortlist-body"></div>
   </div>
@@ -166,6 +117,7 @@
   let shortlist = { tenements: {}, minedex: {}, combined: {} };
   let locateCache = {}; // rowIdx -> array of matched tenement attributes from last lookup
   let exclusions = []; // user-maintained deal-breaker terms, persists across data refreshes
+  let aiVerifiedCache = {}; // name (uppercase) -> { is_listed, parent, note }
 
   const tenementCols = [
     { key: 'tenement_id_formatted', label: 'ID' },
@@ -490,7 +442,12 @@
         <div class="ctrl-row">
           <input type="text" id="search-minedex" placeholder="Search site, project..." style="width:220px;">
           <select id="filter-commodity-minedex"><option value="">All commodity groups</option>${commodities.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
-          <select id="filter-target-minedex"><option value="">Any specific mineral</option>${targetTokens.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+          <div style="position:relative; display:inline-block;">
+            <button type="button" id="mineral-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Minerals <span id="mineral-multiselect-count"></span> &#9662;</button>
+            <div id="mineral-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+              ${targetTokens.map(t=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="mineral-checkbox" value="${t}"> ${t}</label>`).join('')}
+            </div>
+          </div>
           <select id="filter-stage-minedex"><option value="">All stages</option>${stages.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
           <select id="filter-sitetype-minedex"><option value="">All site types</option>${siteTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-minesonly-minedex"> Mines and deposits only</label>
@@ -498,11 +455,29 @@
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-viable-minedex"> Hide environment / remediation sites</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-minedex"> Hide excluded</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-asx-minedex"> Hide ASX-linked projects</label>
+          <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify ASX status</button>
+          <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
           <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
         </div>`;
       document.getElementById('search-minedex').addEventListener('input', e => { state.minedex.search = e.target.value.toLowerCase(); applyFilters('minedex'); });
       document.getElementById('filter-commodity-minedex').addEventListener('change', e => { state.minedex.commodityFilter = e.target.value; applyFilters('minedex'); });
-      document.getElementById('filter-target-minedex').addEventListener('change', e => { state.minedex.targetFilter = e.target.value; applyFilters('minedex'); });
+      document.getElementById('mineral-multiselect-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.getElementById('mineral-multiselect-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+      document.addEventListener('click', (e) => {
+        const panel = document.getElementById('mineral-multiselect-panel');
+        if (panel && !panel.contains(e.target) && e.target.id !== 'mineral-multiselect-btn') panel.style.display = 'none';
+      });
+      document.querySelectorAll('.mineral-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const checked = Array.from(document.querySelectorAll('.mineral-checkbox:checked')).map(c => c.value);
+          state.minedex.targetFilters = checked;
+          document.getElementById('mineral-multiselect-count').textContent = checked.length ? `(${checked.length})` : '';
+          applyFilters('minedex');
+        });
+      });
       document.getElementById('filter-stage-minedex').addEventListener('change', e => { state.minedex.stageFilter = e.target.value; applyFilters('minedex'); });
       document.getElementById('filter-sitetype-minedex').addEventListener('change', e => { state.minedex.siteTypeFilter = e.target.value; applyFilters('minedex'); });
       document.getElementById('filter-minesonly-minedex').addEventListener('change', e => { state.minedex.minesOnly = e.target.checked; applyFilters('minedex'); });
@@ -510,6 +485,7 @@
       document.getElementById('filter-viable-minedex').addEventListener('change', e => { state.minedex.viableOnly = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-excluded-minedex').addEventListener('change', e => { state.minedex.hideExcluded = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
+      document.getElementById('minedex-ai-verify-btn').addEventListener('click', runMinedexAiVerify);
     }
   }
 
@@ -535,7 +511,7 @@
       if (s.stageFilter) rows = rows.filter(r => r.site_stage === s.stageFilter);
       if (s.siteTypeFilter) rows = rows.filter(r => r.site_type === s.siteTypeFilter);
       if (s.minesOnly) rows = rows.filter(r => { const t = (r.site_type||'').toUpperCase(); return t === 'MINE' || t === 'DEPOSIT'; });
-      if (s.targetFilter) rows = rows.filter(r => (r.target_commodity||'').toUpperCase().includes(s.targetFilter.toUpperCase()));
+      if (s.targetFilters && s.targetFilters.length) rows = rows.filter(r => { const hay = (r.target_commodity||'').toUpperCase(); return s.targetFilters.some(t => hay.includes(t.toUpperCase())); });
       if (s.search) rows = rows.filter(r => (r.site_name||'').toLowerCase().includes(s.search) || (r.project_name||'').toLowerCase().includes(s.search));
       if (s.viableOnly) {
         rows = rows.filter(r => {
@@ -592,10 +568,20 @@
       html += `<tr data-idx="${start+i}" data-dataset="${dataset}"><td><button class="star-btn ${starred?'starred':''}" data-id="${id}" data-dataset="${dataset}">&#9733;</button><button class="exclude-btn" data-idx="${start+i}" data-dataset="${dataset}" title="Add to exclusions" style="font-size:11px; color:#A32D2D; background:none; border:none; cursor:pointer; margin-left:4px;">&#10005;</button></td>`;
       if (dataset === 'minedex') html += `<td><button class="locate-btn" data-idx="${start+i}" style="font-size:11px; padding:4px 8px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; cursor:pointer;">Find tenement</button></td>`;
       if (dataset === 'minedex') {
-        const major = isMajorProject(row);
-        const badge = major
-          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
-          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major in the project/site name — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>';
+        const aiKey = (row.project_name || row.site_name || '').toUpperCase();
+        const ai = aiKey ? aiVerifiedCache[aiKey] : null;
+        let badge;
+        if (ai) {
+          const aiTitle = (ai.note || '') + (ai.parent ? ' Parent: ' + ai.parent + '.' : '');
+          badge = ai.is_listed
+            ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="${escapeAttr('AI-verified as listed or subsidiary of a listed/state-owned parent. ' + aiTitle)}">&#10003; ASX (AI-verified)</span>`
+            : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px; border:1px solid #173404;" title="${escapeAttr('AI-verified: no listed or state-owned parent found. ' + aiTitle)}">&#10003; Private (AI-verified)</span>`;
+        } else {
+          const major = isMajorProject(row);
+          badge = major
+            ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
+            : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major in the project/site name — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>';
+        }
         html += `<td>${badge}</td>`;
       }
       if (dataset === 'tenements') {
@@ -659,6 +645,14 @@
     const nextBtn = document.getElementById('next-' + dataset);
     if (prevBtn) prevBtn.addEventListener('click', () => { s.page--; renderTable(dataset); });
     if (nextBtn) nextBtn.addEventListener('click', () => { s.page++; renderTable(dataset); });
+  }
+
+  // AI-returned note/parent text lands inside a title="..." attribute, so it
+  // has to be escaped before it reaches the markup.
+  function escapeAttr(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   function esriMsToDate(ms) {
@@ -1018,183 +1012,27 @@
     URL.revokeObjectURL(url);
   }
 
-  function collectClientCandidates(minerals, stages) {
-    const tokens = minerals.map(m => m.trim().toUpperCase()).filter(Boolean);
-    const stageSet = new Set(stages);
-    const stageOrder = ['Operating', 'Under Development', 'Care and Maintenance', 'Proposed', 'Undeveloped'];
-    let candidates = state.minedex.rows.filter(r => {
-      if (!stageSet.has(r.site_stage)) return false;
-      const hay = ((r.target_commodity || '') + ' ' + (r.commodity_group || '')).toUpperCase();
-      if (tokens.length && !tokens.some(t => hay.includes(t))) return false;
-      if (isMajorProject(r)) return false;
-      if (isExcluded(r)) return false;
-      const t = (r.site_type || '').toUpperCase();
-      if (t && t !== 'MINE' && t !== 'DEPOSIT') return false;
-      return true;
-    });
-    const seen = new Set();
-    candidates = candidates.filter(r => {
-      const key = (r.project_name || r.site_name || '').toUpperCase();
-      if (!key) return true;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    candidates.sort((a, b) => stageOrder.indexOf(a.site_stage) - stageOrder.indexOf(b.site_stage));
-    return candidates;
-  }
-
-  async function runClientSearch() {
-    const statusEl = document.getElementById('cb-status');
-    const btn = document.getElementById('cb-run-btn');
-    const minerals = document.getElementById('cb-minerals').value.split(',').map(s => s.trim()).filter(Boolean);
-    const stages = Array.from(document.querySelectorAll('.cb-stage:checked')).map(cb => cb.value);
-    const valueMin = document.getElementById('cb-value-min').value.trim();
-    const valueMax = document.getElementById('cb-value-max').value.trim();
-    const notes = document.getElementById('cb-notes').value.trim();
-
-    if (!minerals.length) { statusEl.textContent = 'Enter at least one mineral.'; return; }
-    if (!stages.length) { statusEl.textContent = 'Select at least one stage.'; return; }
-
+  async function runMinedexAiVerify() {
+    const statusEl = document.getElementById('minedex-ai-verify-status');
+    const btn = document.getElementById('minedex-ai-verify-btn');
+    const names = Array.from(new Set(state.minedex.filtered.map(r => r.project_name || r.site_name).filter(Boolean)));
+    if (!names.length) { statusEl.textContent = 'No visible rows to check — adjust filters first.'; return; }
+    const toCheck = names.filter(n => !aiVerifiedCache[n.toUpperCase()]);
+    if (!toCheck.length) { statusEl.textContent = 'All visible rows already AI-verified.'; renderTable('minedex'); return; }
     btn.disabled = true;
-    document.getElementById('cb-server-status').innerHTML = '';
-    setGlobalStatus('Pulling live DMIRS data and filtering candidates on the server...');
-
-    let searchData;
-    try {
-      const searchResp = await fetch('/find-candidates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minerals, stages }),
-      });
-      searchData = await searchResp.json();
-      if (searchData.error) throw new Error(searchData.error);
-    } catch (err) {
-      setGlobalStatus('Search failed: ' + err.message);
-      statusEl.textContent = 'Search failed: ' + err.message;
-      btn.disabled = false;
-      return;
+    const chunkSize = 15;
+    for (let i = 0; i < toCheck.length; i += chunkSize) {
+      const chunk = toCheck.slice(i, i + chunkSize);
+      statusEl.textContent = `AI-checking ${i+1}-${Math.min(i+chunkSize,toCheck.length)} of ${toCheck.length}...`;
+      try {
+        const resp = await fetch('/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names: chunk }) });
+        const data = await resp.json();
+        (data.results||[]).forEach(r => { aiVerifiedCache[r.name.toUpperCase()] = r; });
+      } catch (err) { statusEl.textContent = 'Failed: ' + err.message; break; }
     }
-
-    if (!searchData.candidates.length) {
-      setGlobalStatus('No candidates matched — try broader minerals or stages.');
-      btn.disabled = false;
-      return;
-    }
-
-    const candidates = searchData.candidates; // [{ candidate, tenement, holderIsMajor }]
-
-    // Step 1: populate and show Tenements tab
-    setGlobalStatus(`Populating Tenements tab with ${candidates.length} matched tenement records...`);
-    switchToTab('tenements');
-    const tenRows = candidates.filter(c => c.tenement).map(c => {
-      const t = c.tenement;
-      return {
-        tenement_id: t.tenid, tenement_id_formatted: t.fmt_tenid || t.tenid,
-        tenement_type: t.type, tenement_status: t.tenstatus,
-        holder_count: '', holder1: t.holder1,
-        area: t.legal_area, area_unit: t.unit_of_me,
-        grant_date: '', start_date: '', end_date: esriMsToDate(t.enddate),
-      };
-    });
-    state.tenements.rows = tenRows;
-    state.tenements.filtered = tenRows;
-    state.tenements.page = 0;
-    document.getElementById('status-tenements').textContent = `${tenRows.length} tenement(s) loaded from client search results`;
-    buildControls('tenements');
-    renderTable('tenements');
-    await new Promise(r => setTimeout(r, 1800));
-
-    // Step 2: populate and show Minedex tab
-    setGlobalStatus(`Populating Minedex tab with ${candidates.length} matched project records...`);
-    switchToTab('minedex');
-    const mdRows = candidates.map(c => c.candidate);
-    state.minedex.rows = mdRows;
-    state.minedex.filtered = mdRows;
-    state.minedex.page = 0;
-    document.getElementById('status-minedex').textContent = `${mdRows.length} record(s) loaded from client search results`;
-    buildControls('minedex');
-    renderTable('minedex');
-    await new Promise(r => setTimeout(r, 1800));
-
-    // Step 3: build shortlist from candidates, unresearched — land here for manual vetting
-    setGlobalStatus(`Building shortlist — ${candidates.length} candidates ready to vet...`);
-    switchToTab('shortlist');
-    for (const c of candidates) {
-      const tenAttrs = c.tenement || { fmt_tenid: '', tenid: '', type: '', tenstatus: '', holder1: '', legal_area: '', unit_of_me: '', enddate: null };
-      await saveCombinedMatch(c.candidate, tenAttrs);
-    }
-    renderShortlist();
-
-    setGlobalStatus(`Done — ${candidates.length} candidates in shortlist from live DMIRS data (matched ${searchData.totalMatched} total). Star or exclude each one, then use "AI research" on any card to dig deeper.`);
+    statusEl.textContent = `Done — ${toCheck.length} checked.`;
     btn.disabled = false;
-  }
-
-  function renderClientResults(resultsData) {
-    const resultsEl = document.getElementById('cb-results');
-    const fitOrder = { Yes: 0, Maybe: 1, No: 2, '': 3 };
-    const sorted = resultsData.map((item, origIdx) => ({ ...item, origIdx })).sort((a, b) => {
-      const fa = (a.research.match(/^FIT:\s*(Yes|Maybe|No)/i) || [])[1] || '';
-      const fb = (b.research.match(/^FIT:\s*(Yes|Maybe|No)/i) || [])[1] || '';
-      return (fitOrder[fa] ?? 3) - (fitOrder[fb] ?? 3);
-    });
-
-    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <p style="margin:0; font-size:13px; font-weight:bold;">${sorted.length} candidate${sorted.length===1?'':'s'} checked, ranked by fit</p>
-      <button id="cb-save-selected-btn" style="background:#14110D; color:#A98D4B; border:none; padding:8px 16px; border-radius:4px; font-size:13px; cursor:pointer;">Save selected to shortlist</button>
-    </div>`;
-
-    sorted.forEach((item, idx) => {
-      const r = item.candidate, tenement = item.tenement, research = item.research;
-      const fitMatch = research.match(/^FIT:\s*(Yes|Maybe|No)[:\s]*(.*)$/im);
-      const fit = fitMatch ? fitMatch[1] : '';
-      const fitReason = fitMatch ? fitMatch[2] : '';
-      const fitColors = { Yes: ['#C0DD97', '#173404'], Maybe: ['#FAC775', '#412402'], No: ['#F0997B', '#4A1B0C'] };
-      const [bg, fg] = fitColors[fit] || ['#D3D1C7', '#2C2C2A'];
-      const fitBadge = fit ? `<span style="font-size:11px; background:${bg}; color:${fg}; padding:3px 10px; border-radius:3px; font-weight:bold;">${fit}</span>` : '';
-      const marketBadge = tenement
-        ? (isMajorHolder(tenement.holder1)
-          ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;">ASX-listed</span>'
-          : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;">Unverified</span>')
-        : '<span style="font-size:10px; background:#D3D1C7; color:#2C2C2A; padding:2px 6px; border-radius:3px;">No tenement found</span>';
-      const researchBody = research.replace(/^FIT:.*$/im, '').trim();
-      html += `<div style="border:1px solid #E5E0D5; border-radius:6px; padding:14px 16px; margin-bottom:12px; background:#fff;">
-        <div style="display:flex; gap:10px; align-items:flex-start;">
-          <input type="checkbox" class="cb-result-checkbox" data-idx="${idx}" ${fit==='Yes'?'checked':''}>
-          <div style="flex:1;">
-            <p style="margin:0; font-weight:bold; font-size:14px;">${r.site_name || r.project_name || 'Untitled'} ${fitBadge} ${marketBadge}</p>
-            <p style="margin:2px 0 0; font-size:12px; color:#7A7264;">${r.project_name||''} &middot; ${r.commodity_group||''} &middot; ${r.target_commodity||''} &middot; ${r.site_stage||''}${tenement ? ' &middot; Holder: '+(tenement.holder1||'') : ''}</p>
-            ${fitReason ? `<p style="margin:6px 0 0; font-size:12px; color:#14110D;">${fitReason}</p>` : ''}
-            <details style="margin-top:8px;"><summary style="font-size:12px; color:#A98D4B; cursor:pointer;">Full research</summary>
-              <div style="font-size:12px; margin-top:8px; white-space:pre-wrap; line-height:1.5;">${researchBody}</div>
-            </details>
-          </div>
-        </div>
-      </div>`;
-    });
-
-    resultsEl.innerHTML = html;
-
-    const saveBtn = document.getElementById('cb-save-selected-btn');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', async () => {
-        const checkedIdx = Array.from(document.querySelectorAll('.cb-result-checkbox:checked')).map(cb => parseInt(cb.getAttribute('data-idx')));
-        let count = 0;
-        for (const idx of checkedIdx) {
-          const item = sorted[idx];
-          const r = item.candidate, t = item.tenement;
-          const tenAttrs = t || { fmt_tenid: '', tenid: '', type: '', tenstatus: '', holder1: '', legal_area: '', unit_of_me: '', enddate: null };
-          await saveCombinedMatch(r, tenAttrs);
-          const key = (r.site_code || r.short_name || '') + '::' + (t ? (t.fmt_tenid || t.tenid) : '');
-          if (shortlist.combined[key]) {
-            shortlist.combined[key].research = item.research;
-            await saveCombined();
-          }
-          count++;
-        }
-        alert(`Saved ${count} opportunit${count===1?'y':'ies'} to your shortlist. Go to the Shortlist tab to review and generate the client brief.`);
-      });
-    }
+    renderTable('minedex');
   }
 
   async function runBulkVerify() {
@@ -1269,24 +1107,16 @@
     });
   }
 
-  function switchToTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
-    const targetBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-    if (targetBtn) targetBtn.classList.add('tab-active');
-    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-    document.getElementById('panel-' + tab).style.display = 'block';
-    if (tab === 'shortlist') renderShortlist();
-    if (tab === 'exclusions') renderExclusions();
-  }
-  function setGlobalStatus(text) {
-    const el = document.getElementById('global-status');
-    if (!text) { el.style.display = 'none'; return; }
-    el.style.display = 'block';
-    el.textContent = text;
-  }
-
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchToTab(btn.getAttribute('data-tab')));
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+      btn.classList.add('tab-active');
+      const tab = btn.getAttribute('data-tab');
+      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+      document.getElementById('panel-' + tab).style.display = 'block';
+      if (tab === 'shortlist') renderShortlist();
+      if (tab === 'exclusions') renderExclusions();
+    });
   });
   document.getElementById('export-shortlist').addEventListener('click', exportShortlist);
   document.getElementById('export-unverified').addEventListener('click', exportUnverifiedNames);
@@ -1307,7 +1137,6 @@
   });
   loadExclusions();
   document.getElementById('run-bulk-verify-btn').addEventListener('click', runBulkVerify);
-  document.getElementById('cb-run-btn').addEventListener('click', runClientSearch);
 
   setupUpload('tenements');
   setupUpload('minedex');
