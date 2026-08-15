@@ -1,6 +1,5 @@
 // Blackwood & Terrace — Deal Sourcing Server
 // -----------------------------------------------------------------
-// (Node/Express; run with `npm start`.)
 // Serves the workbench frontend and runs three AI-backed jobs:
 //   POST /verify          — bulk ASX/listed-status check on a list of names
 //   POST /research        — deep research on a single opportunity
@@ -57,12 +56,13 @@ app.post("/research", async (req, res) => {
     return res.status(500).json({ error: "ANTHROPIC_API_KEY environment variable not set on this server." });
   }
   const opp = req.body.opportunity;
+  const clientCriteria = req.body.clientCriteria || null;
   if (!opp || (!opp.site_name && !opp.project_name)) {
     return res.status(400).json({ error: "No opportunity data provided" });
   }
 
   try {
-    const text = await researchOpportunity(opp);
+    const text = await researchOpportunity(opp, clientCriteria);
     res.json({ research: text });
   } catch (err) {
     res.status(500).json({ error: err.message || "Research failed" });
@@ -140,11 +140,11 @@ Every name in the input must appear exactly once in the output, using the exact 
   }
 }
 
-async function researchOpportunity(opp) {
+async function researchOpportunity(opp, clientCriteria) {
   const systemPrompt = `You are a research analyst for Blackwood & Terrace, an Australian deal origination firm connecting offshore private capital with off-market Australian mining opportunities. You research WA mining projects and tenement holders for a private client brief.
 
 For the project/tenement given, use web search to find and report on:
-1. Ownership — who actually owns/controls it (private, ASX-listed, foreign parent, state-owned). Be specific and cite what you find.
+${clientCriteria ? `0. FIT VERDICT — the very first line of your response, exactly in this format: "FIT: Yes" or "FIT: Maybe" or "FIT: No" followed by a colon and one sentence why, judged against the client criteria given below. Be honest and specific — if it's ASX-listed, JV'd to a major, foreign state-owned, or clearly outside the value range, that's a No.\n` : ''}1. Ownership — who actually owns/controls it (private, ASX-listed, foreign parent, state-owned). Be specific and cite what you find.
 2. Scale — resource estimate, mine life, production figures, DFS/PFS economics (NPV, IRR) if publicly available.
 3. Recent developments — funding rounds, JV agreements, corporate activity, news in the last 12-24 months.
 4. Contact — any named individuals, investor relations contacts, or company addresses/emails found in public records.
@@ -159,7 +159,8 @@ Commodity: ${opp.commodity_group || ''} (target: ${opp.target_commodity || ''})
 Stage: ${opp.site_stage || ''}
 Tenement: ${opp.tenement_id || ''}
 Registered holder: ${opp.holder1 || ''}
-${opp.web_link ? 'MINEDEX record: ' + opp.web_link : ''}`;
+${opp.web_link ? 'MINEDEX record: ' + opp.web_link : ''}
+${clientCriteria ? '\nCLIENT CRITERIA to judge fit against:\n' + clientCriteria : ''}`;
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
