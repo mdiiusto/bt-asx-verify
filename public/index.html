@@ -170,9 +170,13 @@
   }
 
   function isExcluded(row) {
-    if (!exclusions.length) return false;
-    const haystack = [row.site_name, row.project_name, row.short_name, row.holder1, row.tenement_id_formatted].filter(Boolean).join(' | ').toUpperCase();
-    return exclusions.some(term => haystack.includes(term.toUpperCase()));
+    if (!exclusions || !exclusions.length) return false;
+    const parts = [row.site_name, row.project_name, row.short_name, row.holder1, row.tenement_id_formatted];
+    const haystack = parts.filter(Boolean).join(' | ').toUpperCase();
+    for (let i = 0; i < exclusions.length; i++) {
+      if (haystack.indexOf(exclusions[i].toUpperCase()) !== -1) return true;
+    }
+    return false;
   }
   async function loadExclusions() {
     try {
@@ -686,26 +690,28 @@
         if (document.getElementById('panel-shortlist').style.display !== 'none') renderShortlist();
       });
     });
-    document.querySelectorAll(`#table-${dataset} .exclude-btn`).forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    document.querySelectorAll(`#table-${dataset} .exclude-btn`).forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
         e.stopPropagation();
         const ds = btn.getAttribute('data-dataset');
-        const rowIdx = parseInt(btn.getAttribute('data-idx'));
+        const rowIdx = parseInt(btn.getAttribute('data-idx'), 10);
         const row = state[ds].filtered[rowIdx];
+        if (!row) return;
         const term = ds === 'minedex' ? (row.project_name || row.site_name) : row.holder1;
         if (!term) return;
-        if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
-          exclusions.push(term);
-          await saveExclusions();
-          if (state.tenements.hideExcluded === undefined) state.tenements.hideExcluded = true;
-          if (state.minedex.hideExcluded === undefined) state.minedex.hideExcluded = true;
+        const alreadyExcluded = exclusions.some(function(t) { return t.toUpperCase() === term.toUpperCase(); });
+        if (alreadyExcluded) return;
+        exclusions.push(term);
+        saveExclusions().then(function() {
+          state.tenements.hideExcluded = true;
+          state.minedex.hideExcluded = true;
+          const tenCheckbox = document.getElementById('filter-excluded-tenements');
+          if (tenCheckbox) tenCheckbox.checked = true;
+          const mdxCheckbox = document.getElementById('filter-excluded-minedex');
+          if (mdxCheckbox) mdxCheckbox.checked = true;
           applyFilters('tenements');
           applyFilters('minedex');
-          const originalTitle = btn.title;
-          btn.textContent = '✓';
-          btn.title = `Added "${term}" to exclusions`;
-          setTimeout(() => { btn.textContent = '✕'; btn.title = originalTitle; }, 1200);
-        }
+        });
       });
     });
     document.querySelectorAll(`#table-${dataset} .locate-btn`).forEach(btn => {
