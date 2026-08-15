@@ -977,7 +977,6 @@
         if (!opp) return;
         const field = document.querySelector(`.research-field[data-key="${key}"]`);
         if (opp.research && field.value.trim()) {
-          if (!confirm('This will replace the existing research findings for this opportunity. Continue?')) return;
         }
         btn.textContent = 'Researching...';
         btn.disabled = true;
