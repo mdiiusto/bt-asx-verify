@@ -470,7 +470,7 @@
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-viable-minedex"> Hide environment / remediation sites</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-minedex"> Hide excluded</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-asx-minedex"> Hide ASX-linked projects</label>
-          <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify ASX status</button>
+          <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify &amp; remove listed</button>
           <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
           <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
         </div>`;
@@ -1079,19 +1079,35 @@
     const toCheck = names.filter(n => !aiVerifiedCache[n.toUpperCase()]);
     if (!toCheck.length) { statusEl.textContent = 'All visible rows already AI-verified.'; renderTable('minedex'); return; }
     btn.disabled = true;
-    const chunkSize = 15;
+    const chunkSize = 10;
+    let removedCount = 0;
+    let checkedCount = 0;
     for (let i = 0; i < toCheck.length; i += chunkSize) {
       const chunk = toCheck.slice(i, i + chunkSize);
-      statusEl.textContent = `AI-checking ${i+1}-${Math.min(i+chunkSize,toCheck.length)} of ${toCheck.length}...`;
+      statusEl.textContent = `Checking ${i+1}-${Math.min(i+chunkSize,toCheck.length)} of ${toCheck.length}... (${removedCount} confirmed listed and removed so far)`;
       try {
         const resp = await fetch('/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names: chunk }) });
         const data = await resp.json();
         (data.results||[]).forEach(r => { aiVerifiedCache[r.name.toUpperCase()] = r; });
-      } catch (err) { statusEl.textContent = 'Failed: ' + err.message; break; }
+      } catch (err) {
+        statusEl.textContent = `Failed after checking ${checkedCount} of ${toCheck.length}: ${err.message}`;
+        break;
+      }
+      checkedCount += chunk.length;
+      // Immediately drop confirmed-listed rows from the live view, this session only
+      const beforeCount = state.minedex.filtered.length;
+      state.minedex.filtered = state.minedex.filtered.filter(r => {
+        const key = (r.project_name || r.site_name || '').toUpperCase();
+        const result = aiVerifiedCache[key];
+        return !(result && result.is_listed === true);
+      });
+      removedCount += (beforeCount - state.minedex.filtered.length);
+      state.minedex.page = 0;
+      renderTable('minedex');
+      statusEl.textContent = `Checked ${checkedCount} of ${toCheck.length} — ${removedCount} confirmed ASX-listed and removed from view.`;
     }
-    statusEl.textContent = `Done — ${toCheck.length} checked.`;
+    statusEl.textContent = `Done — checked ${checkedCount} names, removed ${removedCount} confirmed ASX-listed from this session's view.`;
     btn.disabled = false;
-    renderTable('minedex');
   }
 
   async function runBulkVerify() {
