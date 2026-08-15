@@ -190,13 +190,16 @@ app.post("/find-candidates", async (req, res) => {
   }
   try {
     const rows = await fetchLiveMinedexServer();
+    console.log(`[find-candidates] Pulled ${rows.length} live Minedex records from DMIRS`);
     const candidates = collectCandidatesServer(rows, minerals, stages);
+    console.log(`[find-candidates] Filtered to ${candidates.length} candidates matching minerals=[${minerals.join(',')}] stages=[${stages.join(',')}]`);
     const capped = candidates.slice(0, 30);
     const enriched = [];
     for (const cand of capped) {
       const lat = parseFloat(cand.latitude), lon = parseFloat(cand.longitude);
       const tenements = isNaN(lat) || isNaN(lon) ? [] : await fetchTenementsAtPointServer(lat, lon);
       const primaryTen = tenements[0] || null;
+      console.log(`[find-candidates] ${cand.site_name || cand.project_name}: tenement=${primaryTen ? (primaryTen.fmt_tenid||primaryTen.tenid) : 'none found'}, holder=${primaryTen ? primaryTen.holder1 : 'n/a'}`);
       const holderIsMajor = primaryTen ? isMajorHolder(primaryTen.holder1) : false;
       enriched.push({
         candidate: cand,
