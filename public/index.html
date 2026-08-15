@@ -700,9 +700,7 @@
         const term = ds === 'minedex' ? (row.project_name || row.site_name) : row.holder1;
         if (!term) return;
         const alreadyExcluded = exclusions.some(function(t) { return t.toUpperCase() === term.toUpperCase(); });
-        if (alreadyExcluded) return;
-        exclusions.push(term);
-        saveExclusions().then(function() {
+        const doAfter = function() {
           state.tenements.hideExcluded = true;
           state.minedex.hideExcluded = true;
           const tenCheckbox = document.getElementById('filter-excluded-tenements');
@@ -711,7 +709,13 @@
           if (mdxCheckbox) mdxCheckbox.checked = true;
           applyFilters('tenements');
           applyFilters('minedex');
-        });
+        };
+        if (alreadyExcluded) {
+          doAfter();
+        } else {
+          exclusions.push(term);
+          saveExclusions().then(doAfter);
+        }
       });
     });
     document.querySelectorAll(`#table-${dataset} .locate-btn`).forEach(btn => {
