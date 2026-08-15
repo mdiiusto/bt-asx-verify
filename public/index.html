@@ -627,11 +627,15 @@
       html += `<tr data-idx="${start+i}" data-dataset="${dataset}"><td><button class="star-btn ${starred?'starred':''}" data-id="${id}" data-dataset="${dataset}">&#9733;</button><button class="exclude-btn" data-idx="${start+i}" data-dataset="${dataset}" title="Add to exclusions" style="font-size:11px; color:#A32D2D; background:none; border:none; cursor:pointer; margin-left:4px;">&#10005;</button></td>`;
       if (dataset === 'minedex') html += `<td><button class="locate-btn" data-idx="${start+i}" style="font-size:11px; padding:4px 8px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; cursor:pointer;">Find tenement</button></td>`;
       if (dataset === 'minedex') {
-        const aiKey = (row.project_name || row.site_name || '').toUpperCase();
-        const ai = aiKey ? aiVerifiedCache[aiKey] : null;
+        // Prefer a holder-level verdict (resolved from the actual tenement holder)
+        // over one keyed on the project name — the holder is what ownership follows.
+        const holderKey = (row._holderName || '').toUpperCase();
+        const nameKey = (row.project_name || row.site_name || '').toUpperCase();
+        const ai = (holderKey && aiVerifiedCache[holderKey]) || (nameKey ? aiVerifiedCache[nameKey] : null);
         let badge;
         if (ai) {
-          const aiTitle = (ai.note || '') + (ai.parent ? ' Parent: ' + ai.parent + '.' : '');
+          const via = (holderKey && aiVerifiedCache[holderKey]) ? ' Holder checked: ' + row._holderName + '.' : '';
+          const aiTitle = (ai.note || '') + (ai.parent ? ' Parent: ' + ai.parent + '.' : '') + via;
           badge = ai.is_listed
             ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="${escapeAttr('AI-verified as listed or subsidiary of a listed/state-owned parent. ' + aiTitle)}">&#10003; ASX (AI-verified)</span>`
             : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px; border:1px solid #173404;" title="${escapeAttr('AI-verified: no listed or state-owned parent found. ' + aiTitle)}">&#10003; Private (AI-verified)</span>`;
@@ -1071,42 +1075,65 @@
     URL.revokeObjectURL(url);
   }
 
+  let tenementLookupCache = {}; // "lat,lon" -> tenement attributes or null (no match)
+
   async function runMinedexAiVerify() {
     const statusEl = document.getElementById('minedex-ai-verify-status');
     const btn = document.getElementById('minedex-ai-verify-btn');
-    const names = Array.from(new Set(state.minedex.filtered.map(r => r.project_name || r.site_name).filter(Boolean)));
-    if (!names.length) { statusEl.textContent = 'No visible rows to check — adjust filters first.'; return; }
-    const toCheck = names.filter(n => !aiVerifiedCache[n.toUpperCase()]);
-    if (!toCheck.length) { statusEl.textContent = 'All visible rows already AI-verified.'; renderTable('minedex'); return; }
+    const rowsToCheck = state.minedex.filtered.slice();
+    if (!rowsToCheck.length) { statusEl.textContent = 'No visible rows to check — adjust filters first.'; return; }
     btn.disabled = true;
-    const chunkSize = 10;
+
+    // Step 1: resolve the actual tenement holder for each row that doesn't have one cached yet
+    let resolvedCount = 0;
+    let noTenementCount = 0;
+    for (const row of rowsToCheck) {
+      const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
+      const cacheKey = `${lat},${lon}`;
+      if (isNaN(lat) || isNaN(lon)) { row._holderName = null; continue; }
+      if (tenementLookupCache.hasOwnProperty(cacheKey)) {
+        row._holderName = tenementLookupCache[cacheKey];
+      } else {
+        statusEl.textContent = `Looking up tenement holders: ${resolvedCount + 1} of ${rowsToCheck.length}...`;
+        const tenements = await fetchTenementsAtPoint(lat, lon);
+        const holder = (tenements[0] && tenements[0].holder1) ? tenements[0].holder1 : null;
+        tenementLookupCache[cacheKey] = holder;
+        row._holderName = holder;
+      }
+      if (!row._holderName) noTenementCount++;
+      resolvedCount++;
+    }
+
+    // Step 2: collect distinct holder names not already AI-verified, verify them
+    const holderNames = Array.from(new Set(rowsToCheck.map(r => r._holderName).filter(Boolean)));
+    const toCheck = holderNames.filter(n => !aiVerifiedCache[n.toUpperCase()]);
     let removedCount = 0;
     let checkedCount = 0;
+    const chunkSize = 10;
     for (let i = 0; i < toCheck.length; i += chunkSize) {
       const chunk = toCheck.slice(i, i + chunkSize);
-      statusEl.textContent = `Checking ${i+1}-${Math.min(i+chunkSize,toCheck.length)} of ${toCheck.length}... (${removedCount} confirmed listed and removed so far)`;
+      statusEl.textContent = `Verifying holders ${i+1}-${Math.min(i+chunkSize,toCheck.length)} of ${toCheck.length} (${removedCount} listed removed so far)...`;
       try {
         const resp = await fetch('/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names: chunk }) });
         const data = await resp.json();
         (data.results||[]).forEach(r => { aiVerifiedCache[r.name.toUpperCase()] = r; });
       } catch (err) {
-        statusEl.textContent = `Failed after checking ${checkedCount} of ${toCheck.length}: ${err.message}`;
+        statusEl.textContent = `Failed after ${checkedCount} of ${toCheck.length}: ${err.message}`;
         break;
       }
       checkedCount += chunk.length;
-      // Immediately drop confirmed-listed rows from the live view, this session only
       const beforeCount = state.minedex.filtered.length;
       state.minedex.filtered = state.minedex.filtered.filter(r => {
-        const key = (r.project_name || r.site_name || '').toUpperCase();
-        const result = aiVerifiedCache[key];
+        if (!r._holderName) return true; // keep rows with no resolvable tenement, can't confirm either way
+        const result = aiVerifiedCache[r._holderName.toUpperCase()];
         return !(result && result.is_listed === true);
       });
       removedCount += (beforeCount - state.minedex.filtered.length);
       state.minedex.page = 0;
       renderTable('minedex');
-      statusEl.textContent = `Checked ${checkedCount} of ${toCheck.length} — ${removedCount} confirmed ASX-listed and removed from view.`;
+      statusEl.textContent = `Checked ${checkedCount} of ${toCheck.length} holders — ${removedCount} confirmed ASX-listed and removed. (${noTenementCount} rows had no tenement to verify.)`;
     }
-    statusEl.textContent = `Done — checked ${checkedCount} names, removed ${removedCount} confirmed ASX-listed from this session's view.`;
+    statusEl.textContent = `Done — ${resolvedCount} rows checked, ${checkedCount} distinct holders verified, ${removedCount} confirmed ASX-listed and removed. ${noTenementCount} rows had no tenement match and were kept as unverified.`;
     btn.disabled = false;
   }
 
