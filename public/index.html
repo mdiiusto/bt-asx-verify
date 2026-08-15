@@ -694,7 +694,6 @@
         const row = state[ds].filtered[rowIdx];
         const term = ds === 'minedex' ? (row.project_name || row.site_name) : row.holder1;
         if (!term) return;
-        if (!confirm('Add "' + term + '" to your exclusion list? It will be hidden across both tabs whenever "Hide excluded" is ticked.')) return;
         if (!exclusions.some(t => t.toUpperCase() === term.toUpperCase())) {
           exclusions.push(term);
           await saveExclusions();
@@ -702,6 +701,10 @@
           if (state.minedex.hideExcluded === undefined) state.minedex.hideExcluded = true;
           applyFilters('tenements');
           applyFilters('minedex');
+          const originalTitle = btn.title;
+          btn.textContent = '✓';
+          btn.title = `Added "${term}" to exclusions`;
+          setTimeout(() => { btn.textContent = '✕'; btn.title = originalTitle; }, 1200);
         }
       });
     });
