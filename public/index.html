@@ -176,6 +176,11 @@
     // false-positive against half the major holders list.
     return fields.some(f => {
       if (f.length < 5) return false;
+      // Must be a multi-word phrase. Every generic single word ("MINING", "PILBARA",
+      // "RESOURCES") is a legitimate whole word inside some holder entry, so a word
+      // boundary alone doesn't rule them out. Single-word names that genuinely are
+      // majors get caught by the forward haystack check above before reaching here.
+      if (!f.includes(' ')) return false;
       const fUpper = f.toUpperCase();
       return MAJOR_HOLDERS.some(m => {
         const re = new RegExp('(^|\\W)' + fUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\W|$)');
