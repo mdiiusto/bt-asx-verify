@@ -700,7 +700,7 @@
               : (isMajorProject(row)
                   ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
                   : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>'));
-        html += `<td>${badge}</td>`;
+        html += `<td class="market-badge-cell">${badge}</td>`;
       }
       if (dataset === 'tenements') {
         const major = isMajorHolder(row.holder1);
@@ -828,6 +828,15 @@
         locateCache[rowIdx] = feats.map(f => f.attributes);
         if (dataset === 'minedex' && feats.length && feats[0].attributes.holder1) {
           row._holderName = feats[0].attributes.holder1;
+        }
+        if (dataset === 'minedex' && row._holderName) {
+          const holderIsMajor = isMajorHolder(row._holderName);
+          const badgeCell = tr.querySelector('.market-badge-cell');
+          if (badgeCell) {
+            badgeCell.innerHTML = holderIsMajor
+              ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Tenement holder '${escapeAttr(row._holderName)}' matches a known ASX-listed company or subsidiary">ASX</span>`
+              : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No AI verification yet — resolved holder '${escapeAttr(row._holderName)}' does not match the known-majors list, but this is not confirmation of private ownership.">Unverified</span>`;
+          }
         }
         const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(`"${row.project_name || row.site_name || ''}" mine Western Australia WA mining -wikipedia`);
         let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Market</th><th>Tenement</th><th>Type</th><th>Status</th><th>Holder</th><th>Area</th><th>Expires</th><th></th><th></th></tr></thead><tbody>';
