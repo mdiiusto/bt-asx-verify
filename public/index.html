@@ -1034,22 +1034,31 @@
       });
     }
 
-    if (tRows.length) {
-      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Tenements only (' + tRows.length + ')</h3>';
-      html += '<div class="table-scroll"><table><thead><tr><th>Market</th>' + tenementCols.map(c=>`<th>${c.label}</th>`).join('') + '</tr></thead><tbody>';
-      tRows.forEach(r => {
+    const tEntries = Object.entries(shortlist.tenements);
+    if (tEntries.length) {
+      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Tenements only (' + tEntries.length + ')</h3>';
+      html += '<div class="table-scroll"><table><thead><tr><th>Market</th>' + tenementCols.map(c=>`<th>${c.label}</th>`).join('') + '<th></th></tr></thead><tbody>';
+      tEntries.forEach(([key, r]) => {
         const major = isMajorHolder(r.holder1);
         const badge = major
           ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 8px; border-radius:3px;">ASX-listed</span>'
           : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 8px; border-radius:3px;">Unverified</span>';
-        html += '<tr><td>' + badge + '</td>' + tenementCols.map(c=>`<td>${r[c.key]||''}</td>`).join('') + '</tr>';
+        html += '<tr><td>' + badge + '</td>' + tenementCols.map(c=>`<td>${r[c.key]||''}</td>`).join('');
+        html += `<td><button class="remove-tenement-star-btn" data-key="${key}" style="font-size:11px; padding:4px 10px; border:1px solid #C9C3B5; background:#fff; color:#7A7264; border-radius:4px; cursor:pointer;">Remove</button></td>`;
+        html += '</tr>';
       });
       html += '</tbody></table></div>';
     }
-    if (mRows.length) {
-      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Minedex only (' + mRows.length + ')</h3>';
-      html += '<div class="table-scroll"><table><thead><tr>' + minedexCols.map(c=>`<th>${c.label}</th>`).join('') + '</tr></thead><tbody>';
-      mRows.forEach(r => { html += '<tr>' + minedexCols.map(c=>`<td>${r[c.key]||''}</td>`).join('') + '</tr>'; });
+    const mEntries = Object.entries(shortlist.minedex);
+    if (mEntries.length) {
+      html += '<h3 style="font-family:Georgia,serif; font-size:15px; margin:20px 0 8px;">Minedex only (' + mEntries.length + ') — click Research to turn into a full opportunity card</h3>';
+      html += '<div class="table-scroll"><table><thead><tr>' + minedexCols.map(c=>`<th>${c.label}</th>`).join('') + '<th></th><th></th></tr></thead><tbody>';
+      mEntries.forEach(([key, r]) => {
+        html += '<tr>' + minedexCols.map(c=>`<td>${r[c.key]||''}</td>`).join('');
+        html += `<td><button class="promote-minedex-btn" data-key="${key}" style="font-size:11px; padding:4px 10px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; cursor:pointer;">Research this &#8594;</button></td>`;
+        html += `<td><button class="remove-minedex-star-btn" data-key="${key}" style="font-size:11px; padding:4px 10px; border:1px solid #C9C3B5; background:#fff; color:#7A7264; border-radius:4px; cursor:pointer;">Remove</button></td>`;
+        html += '</tr>';
+      });
       html += '</tbody></table></div>';
     }
     if (!cRows.length && !tRows.length && !mRows.length) html = '<p style="color:#7A7264; font-size:13px;">No shortlisted opportunities yet. In the Minedex tab, click Find tenement then Save match to build a full opportunity card here.</p>';
@@ -1059,6 +1068,36 @@
       btn.addEventListener('click', async () => {
         delete shortlist.combined[btn.getAttribute('data-key')];
         await saveCombined();
+        renderShortlist();
+      });
+    });
+    document.querySelectorAll('.remove-minedex-star-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        delete shortlist.minedex[btn.getAttribute('data-key')];
+        await saveShortlist('minedex');
+        renderShortlist();
+      });
+    });
+    document.querySelectorAll('.remove-tenement-star-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        delete shortlist.tenements[btn.getAttribute('data-key')];
+        await saveShortlist('tenements');
+        renderShortlist();
+      });
+    });
+    document.querySelectorAll('.promote-minedex-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const key = btn.getAttribute('data-key');
+        const row = shortlist.minedex[key];
+        if (!row) return;
+        btn.textContent = 'Looking up tenement...';
+        btn.disabled = true;
+        const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
+        const tenements = isNaN(lat) || isNaN(lon) ? [] : await fetchTenementsAtPoint(lat, lon);
+        const primaryTen = tenements[0] || { fmt_tenid: '', tenid: '', type: '', tenstatus: '', holder1: '', legal_area: '', unit_of_me: '', enddate: null };
+        await saveCombinedMatch(row, primaryTen);
+        delete shortlist.minedex[key];
+        await saveShortlist('minedex');
         renderShortlist();
       });
     });
