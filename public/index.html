@@ -492,6 +492,14 @@
       const stages = uniqueValues(state.minedex.rows, 'site_stage', 30);
       const siteTypes = uniqueValues(state.minedex.rows, 'site_type', 20);
       const targetTokens = uniqueTokens(state.minedex.rows, 'target_commodity', '-', 200);
+      const stageInfo = {
+        'Operating': { color: '#173404', bg: '#C0DD97', desc: 'Currently producing' },
+        'Under Development': { color: '#173404', bg: '#C0DD97', desc: 'Being built toward production' },
+        'Care and Maintenance': { color: '#412402', bg: '#FAC775', desc: 'Built but mothballed — often a motivated seller' },
+        'Proposed': { color: '#412402', bg: '#FAC775', desc: 'Approvals submitted, not yet built' },
+        'Undeveloped': { color: '#2C2C2A', bg: '#D3D1C7', desc: 'Resource defined, no development started' },
+        'Shut': { color: '#4A1B0C', bg: '#F0997B', desc: 'Closed — usually a dead end' },
+      };
       el.innerHTML = `
         <div class="ctrl-row">
           <input type="text" id="search-minedex" placeholder="Search site, project..." style="width:220px;">
@@ -509,8 +517,16 @@
           </div>
           <div style="position:relative; display:inline-block;">
             <button type="button" id="stage-multiselect-btn" style="padding:6px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; font-size:13px; cursor:pointer;">Stage <span id="stage-multiselect-count"></span> &#9662;</button>
-            <div id="stage-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:200px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
-              ${stages.map(s=>`<label style="display:block; font-size:12px; padding:3px 0; white-space:nowrap;"><input type="checkbox" class="stage-checkbox" value="${s}"> ${s}</label>`).join('')}
+            <div id="stage-multiselect-panel" style="display:none; position:absolute; top:100%; left:0; z-index:10; background:#fff; border:1px solid #C9C3B5; border-radius:4px; padding:10px; max-height:260px; overflow-y:auto; min-width:320px; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+              ${stages.map(s => {
+                const info = stageInfo[s] || { color: '#2C2C2A', bg: '#D3D1C7', desc: '' };
+                return `<label style="display:flex; align-items:center; gap:6px; font-size:12px; padding:4px 0; white-space:nowrap;">
+                  <input type="checkbox" class="stage-checkbox" value="${s}">
+                  <span style="width:8px; height:8px; border-radius:50%; background:${info.bg}; border:1px solid ${info.color}; flex-shrink:0;"></span>
+                  <span>${s}</span>
+                  ${info.desc ? `<span style="color:#7A7264; font-size:11px;">— ${info.desc}</span>` : ''}
+                </label>`;
+              }).join('')}
             </div>
           </div>
           <div style="position:relative; display:inline-block;">
