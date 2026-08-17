@@ -830,12 +830,19 @@
           row._holderName = feats[0].attributes.holder1;
         }
         if (dataset === 'minedex' && row._holderName) {
-          const holderIsMajor = isMajorHolder(row._holderName);
           const badgeCell = tr.querySelector('.market-badge-cell');
           if (badgeCell) {
-            badgeCell.innerHTML = holderIsMajor
-              ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Tenement holder '${escapeAttr(row._holderName)}' matches a known ASX-listed company or subsidiary">ASX</span>`
-              : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No AI verification yet — resolved holder '${escapeAttr(row._holderName)}' does not match the known-majors list, but this is not confirmation of private ownership.">Unverified</span>`;
+            const aiResult = aiVerifiedCache[row._holderName.toUpperCase()];
+            if (aiResult) {
+              badgeCell.innerHTML = aiResult.is_listed === true
+                ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="${escapeAttr((aiResult.parent ? 'Parent: ' + aiResult.parent + '. ' : '') + (aiResult.note || 'AI-verified as listed'))}">ASX (AI-verified)</span>`
+                : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="${escapeAttr(aiResult.note || 'AI-verified as private')}">Private &#10003; (AI-verified)</span>`;
+            } else {
+              const holderIsMajor = isMajorHolder(row._holderName);
+              badgeCell.innerHTML = holderIsMajor
+                ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Tenement holder '${escapeAttr(row._holderName)}' matches a known ASX-listed company or subsidiary">ASX</span>`
+                : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No AI verification yet — resolved holder '${escapeAttr(row._holderName)}' does not match the known-majors list, but this is not confirmation of private ownership.">Unverified</span>`;
+            }
           }
         }
         const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(`"${row.project_name || row.site_name || ''}" mine Western Australia WA mining -wikipedia`);
