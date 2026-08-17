@@ -476,6 +476,7 @@
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-asx-minedex"> Hide ASX-linked projects</label>
           <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify &amp; remove listed</button>
           <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
+          <button id="clear-filters-minedex" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>
           <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
         </div>`;
       document.getElementById('search-minedex').addEventListener('input', e => { state.minedex.search = e.target.value.toLowerCase(); applyFilters('minedex'); });
@@ -549,6 +550,30 @@
       document.getElementById('filter-excluded-minedex').addEventListener('change', e => { state.minedex.hideExcluded = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
       document.getElementById('minedex-ai-verify-btn').addEventListener('click', runMinedexAiVerify);
+      document.getElementById('clear-filters-minedex').addEventListener('click', () => {
+        document.getElementById('search-minedex').value = '';
+        document.querySelectorAll('.mineral-checkbox, .commodity-checkbox, .stage-checkbox, .sitetype-checkbox').forEach(cb => cb.checked = false);
+        document.getElementById('mineral-multiselect-count').textContent = '';
+        document.getElementById('commodity-multiselect-count').textContent = '';
+        document.getElementById('stage-multiselect-count').textContent = '';
+        document.getElementById('sitetype-multiselect-count').textContent = '';
+        document.getElementById('filter-minesonly-minedex').checked = false;
+        document.getElementById('filter-dedupe-minedex').checked = false;
+        document.getElementById('filter-viable-minedex').checked = false;
+        document.getElementById('filter-excluded-minedex').checked = false;
+        document.getElementById('filter-asx-minedex').checked = false;
+        state.minedex.search = '';
+        state.minedex.targetFilters = [];
+        state.minedex.commodityFilters = [];
+        state.minedex.stageFilters = [];
+        state.minedex.siteTypeFilters = [];
+        state.minedex.minesOnly = false;
+        state.minedex.dedupe = false;
+        state.minedex.viableOnly = false;
+        state.minedex.hideExcluded = false;
+        state.minedex.hideAsx = false;
+        applyFilters('minedex');
+      });
     }
   }
 
