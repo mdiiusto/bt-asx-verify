@@ -435,6 +435,7 @@
           <button id="preset-expiring-tenements" style="padding:5px 10px; border:1px solid #C9C3B5; background:#fff; border-radius:4px; cursor:pointer; font-size:12px;">Expiring in 12mo</button>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-offmarket-tenements"> Hide known ASX majors</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-tenements"> Hide excluded</label>
+          <button id="clear-filters-tenements" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>
           <span style="font-size:12px; color:#7A7264;" id="count-tenements"></span>
         </div>`;
       document.getElementById('search-tenements').addEventListener('input', e => { state.tenements.search = e.target.value.toLowerCase(); applyFilters('tenements'); });
@@ -457,6 +458,35 @@
       });
       document.getElementById('filter-offmarket-tenements').addEventListener('change', e => { state.tenements.offMarketOnly = e.target.checked; applyFilters('tenements'); });
       document.getElementById('filter-excluded-tenements').addEventListener('change', e => { state.tenements.hideExcluded = e.target.checked; applyFilters('tenements'); });
+      document.getElementById('clear-filters-tenements').addEventListener('click', () => {
+        document.getElementById('search-tenements').value = '';
+        document.getElementById('filter-type-tenements').value = '';
+        document.getElementById('filter-status-tenements').value = '';
+        document.getElementById('filter-holders-tenements').value = '';
+        document.getElementById('filter-areamin-tenements').value = '';
+        document.getElementById('filter-areamax-tenements').value = '';
+        document.getElementById('filter-grantfrom-tenements').value = '';
+        document.getElementById('filter-grantto-tenements').value = '';
+        document.getElementById('filter-endfrom-tenements').value = '';
+        document.getElementById('filter-endto-tenements').value = '';
+        document.getElementById('filter-offmarket-tenements').checked = false;
+        document.getElementById('filter-excluded-tenements').checked = false;
+        state.tenements.search = '';
+        state.tenements.typeFilter = '';
+        state.tenements.statusFilter = '';
+        state.tenements.holderFilter = '';
+        // areaMin/areaMax are guarded with `!= null` in applyFilters — resetting them
+        // to '' would pass that guard and filter every row out via NaN comparison.
+        state.tenements.areaMin = null;
+        state.tenements.areaMax = null;
+        state.tenements.grantFrom = null;
+        state.tenements.grantTo = null;
+        state.tenements.endFrom = null;
+        state.tenements.endTo = null;
+        state.tenements.offMarketOnly = false;
+        state.tenements.hideExcluded = false;
+        applyFilters('tenements');
+      });
     } else {
       const commodities = uniqueValues(state.minedex.rows, 'commodity_group', 20);
       const stages = uniqueValues(state.minedex.rows, 'site_stage', 30);
