@@ -233,18 +233,24 @@ app.post("/generate-brief", async (req, res) => {
 });
 
 async function verifyBatch(names) {
-  const systemPrompt = `You are checking Western Australian mining company/holder names against public records to determine if each is ASX-listed, or a subsidiary of an ASX-listed or other publicly-listed company, or foreign state-owned.
+  const systemPrompt = `You are checking Western Australian mining company/holder names against public records to determine if each is ASX-listed, a subsidiary of an ASX-listed or other publicly-listed company, or foreign state-owned.
 
-For each name given, use web search to determine:
-- is_listed: true if ASX-listed, a subsidiary of an ASX-listed company, listed on another exchange, or foreign state-owned. false if it appears to be a genuinely private company with no listed or state-owned parent found.
+For EACH name given, do actual research before answering — do not guess from the name alone:
+1. Search the exact company name plus "ASX".
+2. If that's inconclusive, search the name plus "subsidiary" and separately plus "owned by".
+3. Many well-known ASX miners are instantly identifiable by name alone (e.g. Northern Star, Newcrest, Evolution Mining, Focus Minerals, Regis Resources, Silver Lake Resources) — if the name itself is a recognizable ASX-listed mining company or an obvious variant/subsidiary naming of one (e.g. "Focus Minerals Ltd", "Northern Star (KLV) Pty Ltd"), you already have enough to confirm is_listed:true with high confidence without needing a fresh web search to "discover" this — use your knowledge directly, but still note it plainly.
+4. For less obvious or generic-sounding Pty Ltd names, you MUST search rather than default to assuming private — check for a listed parent before concluding is_listed:false.
+
+For each name, determine:
+- is_listed: true if ASX-listed, a subsidiary of an ASX-listed company, listed on another exchange, or foreign state-owned. false only if you actively checked and found no listed/state parent.
 - parent: the ultimate listed/state-owned parent company name if is_listed is true, else null.
-- confidence: "high" if you found clear, specific evidence; "low" if uncertain or nothing specific was found.
+- confidence: "high" if the name is a directly recognizable listed company/obvious subsidiary, or you found clear specific evidence via search. "low" only if genuinely ambiguous after searching — do not use "low" as a default for names you simply didn't recognize; if it's a common English business name with no listed-company signal, that should be confidence "high" with is_listed:false, not "low" with is_listed:null.
 - note: one short sentence explaining the finding.
 
 Respond with ONLY a JSON array, no other text, no markdown code fences. Format:
 [{"name":"...","is_listed":true,"parent":"...","confidence":"high","note":"..."}, ...]
 
-Every name in the input must appear exactly once in the output, using the exact same name string given.`;
+Every name in the input must appear exactly once in the output, using the exact same name string given. Avoid returning is_listed:null — make a determination one way or the other unless the name is truly unidentifiable (e.g. gibberish or a placeholder).`;
 
   const userMessage = "Check these names:\n" + names.map(n => "- " + n).join("\n");
 

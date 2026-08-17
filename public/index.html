@@ -157,7 +157,7 @@
     'IMDEX', 'ERAMET', 'GLENCORE', 'ANGLO AMERICAN', 'VALE',
     'AERIS RESOURCES', 'ROUND OAK', 'LITHIUM AUSTRALIA', 'LITHOPHILE',
     'VENTUREX', 'DEVELOP GLOBAL', 'ANAX METALS', 'WHIM CREEK METALS',
-    'HORSESHOE METALS', 'MURCHISON COPPER MINES',
+    'HORSESHOE METALS', 'MURCHISON COPPER MINES', 'FOCUS MINERALS',
   ];
   function isMajorHolder(name) {
     if (!name) return false;
@@ -477,6 +477,8 @@
           <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify &amp; remove listed</button>
           <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
           <button id="clear-filters-minedex" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>
+          <button id="sync-tenements-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Show matching tenements &#8594;</button>
+          <span id="minedex-sync-status" style="font-size:12px; color:#7A7264;"></span>
           <span style="font-size:12px; color:#7A7264;" id="count-minedex"></span>
         </div>`;
       document.getElementById('search-minedex').addEventListener('input', e => { state.minedex.search = e.target.value.toLowerCase(); applyFilters('minedex'); });
@@ -550,6 +552,7 @@
       document.getElementById('filter-excluded-minedex').addEventListener('change', e => { state.minedex.hideExcluded = e.target.checked; applyFilters('minedex'); });
       document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
       document.getElementById('minedex-ai-verify-btn').addEventListener('click', runMinedexAiVerify);
+      document.getElementById('sync-tenements-btn').addEventListener('click', syncTenementsToMinedexFilter);
       document.getElementById('clear-filters-minedex').addEventListener('click', () => {
         document.getElementById('search-minedex').value = '';
         document.querySelectorAll('.mineral-checkbox, .commodity-checkbox, .stage-checkbox, .sitetype-checkbox').forEach(cb => cb.checked = false);
@@ -1154,6 +1157,47 @@
     URL.revokeObjectURL(url);
   }
 
+  async function syncTenementsToMinedexFilter() {
+    const statusEl = document.getElementById('minedex-sync-status');
+    const btn = document.getElementById('sync-tenements-btn');
+    const rows = state.minedex.filtered.slice();
+    if (!rows.length) { statusEl.textContent = 'No visible Minedex rows to match against.'; return; }
+    const capped = rows.slice(0, 200);
+    if (rows.length > 200) statusEl.textContent = `Matching tenements for first 200 of ${rows.length} visible rows...`;
+    btn.disabled = true;
+    const matchedTenements = [];
+    const seenTenIds = new Set();
+    for (let i = 0; i < capped.length; i++) {
+      const row = capped[i];
+      statusEl.textContent = `Matching ${i+1} of ${capped.length}: ${row.site_name || row.project_name}...`;
+      const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
+      if (isNaN(lat) || isNaN(lon)) continue;
+      const tenements = await fetchTenementsAtPoint(lat, lon);
+      tenements.forEach(t => {
+        const tid = t.fmt_tenid || t.tenid;
+        if (tid && !seenTenIds.has(tid)) {
+          seenTenIds.add(tid);
+          matchedTenements.push({
+            tenement_id: t.tenid, tenement_id_formatted: t.fmt_tenid || t.tenid,
+            tenement_type: t.type, tenement_status: t.tenstatus,
+            holder_count: '', holder1: t.holder1,
+            area: t.legal_area, area_unit: t.unit_of_me,
+            grant_date: '', start_date: '', end_date: esriMsToDate(t.enddate),
+            _matchedFrom: row.site_name || row.project_name,
+          });
+        }
+      });
+    }
+    state.tenements.rows = matchedTenements;
+    state.tenements.filtered = matchedTenements;
+    state.tenements.page = 0;
+    document.getElementById('status-tenements').textContent = `${matchedTenements.length} tenement(s) matched from ${capped.length} Minedex rows currently filtered — not a full DMIRS load, click "Refresh live data from DMIRS" to go back to the full dataset.`;
+    buildControls('tenements');
+    renderTable('tenements');
+    statusEl.textContent = `Done — ${matchedTenements.length} matching tenements found, now shown in the Tenements tab.`;
+    btn.disabled = false;
+  }
+
   let tenementLookupCache = {}; // "lat,lon" -> tenement attributes or null (no match)
 
   async function runMinedexAiVerify() {
@@ -1172,12 +1216,14 @@
       if (isNaN(lat) || isNaN(lon)) { row._holderName = null; continue; }
       if (tenementLookupCache.hasOwnProperty(cacheKey)) {
         row._holderName = tenementLookupCache[cacheKey];
+        console.log(`[ai-verify] row: ${row.site_name||row.project_name}, resolved holder: ${row._holderName || 'NONE FOUND'}`);
       } else {
         statusEl.textContent = `Looking up tenement holders: ${resolvedCount + 1} of ${rowsToCheck.length}...`;
         const tenements = await fetchTenementsAtPoint(lat, lon);
         const holder = (tenements[0] && tenements[0].holder1) ? tenements[0].holder1 : null;
         tenementLookupCache[cacheKey] = holder;
         row._holderName = holder;
+        console.log(`[ai-verify] row: ${row.site_name||row.project_name}, resolved holder: ${row._holderName || 'NONE FOUND'}`);
       }
       if (!row._holderName) noTenementCount++;
       resolvedCount++;
@@ -1186,6 +1232,8 @@
     // Step 2: collect distinct holder names not already AI-verified, verify them
     const holderNames = Array.from(new Set(rowsToCheck.map(r => r._holderName).filter(Boolean)));
     const toCheck = holderNames.filter(n => !aiVerifiedCache[n.toUpperCase()]);
+    console.log(`[ai-verify] distinct holders found: ${holderNames.length}`, holderNames);
+    console.log(`[ai-verify] holders needing fresh check: ${toCheck.length}`, toCheck);
     let removedCount = 0;
     let checkedCount = 0;
     const chunkSize = 10;
