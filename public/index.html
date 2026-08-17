@@ -475,6 +475,7 @@
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-excluded-minedex"> Hide excluded</label>
           <label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="filter-asx-minedex"> Hide ASX-linked projects</label>
           <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify &amp; remove listed</button>
+          <button id="clear-ai-cache-btn" style="padding:4px 8px; border:1px solid #C9C3B5; background:#fff; color:#7A7264; border-radius:4px; font-size:11px; cursor:pointer;" title="Clear cached AI verdicts so everything gets re-checked fresh">Clear AI cache</button>
           <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
           <button id="clear-filters-minedex" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>
           <button id="sync-tenements-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Show matching tenements &#8594;</button>
@@ -553,6 +554,10 @@
       document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
       document.getElementById('minedex-ai-verify-btn').addEventListener('click', runMinedexAiVerify);
       document.getElementById('sync-tenements-btn').addEventListener('click', syncTenementsToMinedexFilter);
+      document.getElementById('clear-ai-cache-btn').addEventListener('click', () => {
+        aiVerifiedCache = {};
+        document.getElementById('minedex-ai-verify-status').textContent = 'AI verification cache cleared — next run will re-check everything fresh.';
+      });
       document.getElementById('clear-filters-minedex').addEventListener('click', () => {
         document.getElementById('search-minedex').value = '';
         document.querySelectorAll('.mineral-checkbox, .commodity-checkbox, .stage-checkbox, .sitetype-checkbox').forEach(cb => cb.checked = false);
@@ -1172,7 +1177,15 @@
       statusEl.textContent = `Matching ${i+1} of ${capped.length}: ${row.site_name || row.project_name}...`;
       const lat = parseFloat(row.latitude), lon = parseFloat(row.longitude);
       if (isNaN(lat) || isNaN(lon)) continue;
-      const tenements = await fetchTenementsAtPoint(lat, lon);
+      const cacheKey = `${lat},${lon}`;
+      let tenements;
+      if (tenementLookupCache.hasOwnProperty(cacheKey) && Array.isArray(tenementLookupCache[cacheKey + '_full'])) {
+        tenements = tenementLookupCache[cacheKey + '_full'];
+      } else {
+        tenements = await fetchTenementsAtPoint(lat, lon);
+        tenementLookupCache[cacheKey + '_full'] = tenements;
+        tenementLookupCache[cacheKey] = tenements[0] ? tenements[0].holder1 : null;
+      }
       tenements.forEach(t => {
         const tid = t.fmt_tenid || t.tenid;
         if (tid && !seenTenIds.has(tid)) {
@@ -1222,6 +1235,7 @@
         const tenements = await fetchTenementsAtPoint(lat, lon);
         const holder = (tenements[0] && tenements[0].holder1) ? tenements[0].holder1 : null;
         tenementLookupCache[cacheKey] = holder;
+        tenementLookupCache[cacheKey + '_full'] = tenements;
         row._holderName = holder;
         console.log(`[ai-verify] row: ${row.site_name||row.project_name}, resolved holder: ${row._holderName || 'NONE FOUND'}`);
       }
