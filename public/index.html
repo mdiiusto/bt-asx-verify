@@ -168,12 +168,19 @@
     const fields = [row.project_name, row.site_name, row.short_name].filter(Boolean);
     if (!fields.length) return false;
     const haystack = fields.join(' ').toUpperCase();
-    return MAJOR_HOLDERS.some(m => {
-      if (haystack.includes(m)) return true;
-      // also check the reverse: a short project name (e.g. "Golden Grove") can be a
-      // fragment of a longer major-holder entry (e.g. "GOLDEN GROVE OPERATIONS") —
-      // only apply this reverse check for fields at least 5 chars to avoid noisy short matches
-      return fields.some(f => f.length >= 5 && m.includes(f.toUpperCase()));
+    if (MAJOR_HOLDERS.some(m => haystack.includes(m))) return true;
+    // Reverse check: a short project name can be a whole-word match inside a longer
+    // holder entry (e.g. project "Golden Grove" inside holder "GOLDEN GROVE OPERATIONS").
+    // Require the field to match as a complete word/phrase boundary within the holder
+    // string, not just any substring — otherwise generic words like "MINING" or "PILBARA"
+    // false-positive against half the major holders list.
+    return fields.some(f => {
+      if (f.length < 5) return false;
+      const fUpper = f.toUpperCase();
+      return MAJOR_HOLDERS.some(m => {
+        const re = new RegExp('(^|\\W)' + fUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\W|$)');
+        return re.test(m);
+      });
     });
   }
 
@@ -677,8 +684,8 @@
         const major = aiResult ? aiResult.is_listed === true : isMajorProject(row);
         const badge = aiResult
           ? (aiResult.is_listed === true
-              ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="AI-verified">ASX (AI-verified)</span>'
-              : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="AI-verified">Private &#10003; (AI-verified)</span>')
+              ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="${escapeAttr((aiResult.parent ? 'Parent: ' + aiResult.parent + '. ' : '') + (aiResult.note || 'AI-verified as listed'))}">ASX (AI-verified)</span>`
+              : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="${escapeAttr(aiResult.note || 'AI-verified as private')}">Private &#10003; (AI-verified)</span>`)
           : (major
               ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
               : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>');
