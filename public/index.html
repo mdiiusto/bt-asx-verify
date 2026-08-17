@@ -636,7 +636,10 @@
         });
       }
       if (s.hideExcluded) rows = rows.filter(r => !isExcluded(r));
-      if (s.hideAsx) rows = rows.filter(r => !isMajorProject(r));
+      if (s.hideAsx) rows = rows.filter(r => {
+        if (r._holderName && isMajorHolder(r._holderName)) return false;
+        return !isMajorProject(r);
+      });
       if (s.dedupe) {
         const seen = new Set();
         rows = rows.filter(r => {
@@ -686,14 +689,17 @@
       if (dataset === 'minedex') {
         const cacheKeyForBadge = row._holderName ? row._holderName.toUpperCase() : (row.project_name || row.site_name || '').toUpperCase();
         const aiResult = aiVerifiedCache[cacheKeyForBadge];
-        const major = aiResult ? aiResult.is_listed === true : isMajorProject(row);
+        const holderIsStaticMajor = row._holderName ? isMajorHolder(row._holderName) : false;
+        const major = aiResult ? aiResult.is_listed === true : (holderIsStaticMajor || isMajorProject(row));
         const badge = aiResult
           ? (aiResult.is_listed === true
               ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="${escapeAttr((aiResult.parent ? 'Parent: ' + aiResult.parent + '. ' : '') + (aiResult.note || 'AI-verified as listed'))}">ASX (AI-verified)</span>`
               : `<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="${escapeAttr(aiResult.note || 'AI-verified as private')}">Private &#10003; (AI-verified)</span>`)
-          : (major
-              ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
-              : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>');
+          : (holderIsStaticMajor
+              ? `<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Tenement holder '${escapeAttr(row._holderName)}' matches a known ASX-listed company or subsidiary">ASX</span>`
+              : (isMajorProject(row)
+                  ? '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="Project/site name matches a known ASX-listed company or subsidiary">ASX</span>'
+                  : '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major — confirm actual tenement holder via Find tenement before treating as unverified.">Unverified</span>'));
         html += `<td>${badge}</td>`;
       }
       if (dataset === 'tenements') {
@@ -820,6 +826,9 @@
         insertDetailRow(tr, '<span style="color:#7A7264;">No live or pending tenement found at this location.</span>', dataset);
       } else {
         locateCache[rowIdx] = feats.map(f => f.attributes);
+        if (dataset === 'minedex' && feats.length && feats[0].attributes.holder1) {
+          row._holderName = feats[0].attributes.holder1;
+        }
         const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(`"${row.project_name || row.site_name || ''}" mine Western Australia WA mining -wikipedia`);
         let html = '<table style="width:100%; font-size:12px;"><thead><tr><th>Market</th><th>Tenement</th><th>Type</th><th>Status</th><th>Holder</th><th>Area</th><th>Expires</th><th></th><th></th></tr></thead><tbody>';
         feats.forEach((f, matchIdx) => {
