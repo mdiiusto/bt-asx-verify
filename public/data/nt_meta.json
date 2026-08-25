@@ -1,0 +1,13 @@
+{
+  "generated_from": "NT Geological Survey / STRIKE open data",
+  "site_source": "MINERALOCCURRENCES (MODAT)",
+  "title_source": "NT Mineral Titles - granted EXPL + PROD only",
+  "sites_total": 3461,
+  "sites_matched": 2319,
+  "sites_unmatched": 1142,
+  "sites_multi_title": 519,
+  "titles_total": 1945,
+  "pairs_total": 2838,
+  "match_rate": 67.0,
+  "caveat": "asx_major_holder is a name heuristic against the static list only - not confirmation of ownership. Holder is PTY_NAME where HLD_TYPE=Holder; agents (title-services firms) are kept separate in 'agent'."
+}

@@ -16,6 +16,8 @@
   <div id="tabs" style="display: flex; gap: 4px; margin-bottom: 16px;">
     <button class="tab-btn tab-active" data-tab="tenements">Tenements</button>
     <button class="tab-btn" data-tab="minedex">Minedex</button>
+    <button class="tab-btn" data-tab="ntocc">NT Occurrences</button>
+    <button class="tab-btn" data-tab="nttitles">NT Titles</button>
     <button class="tab-btn" data-tab="shortlist">Shortlist <span id="shortlist-count" style="font-size: 11px;"></span></button>
     <button class="tab-btn" data-tab="exclusions">Exclusions <span id="exclusions-count" style="font-size: 11px;"></span></button>
   </div>
@@ -46,6 +48,18 @@
     </div>
     <div id="controls-minedex" style="display:none;"></div>
     <div id="table-minedex"></div>
+  </div>
+
+  <div id="panel-ntocc" class="panel" style="display:none;">
+    <p id="ntocc-intro" style="margin:0 0 10px; font-size:12px; color:#7A7264;">Loading NT data...</p>
+    <div id="controls-ntocc"></div>
+    <div id="table-ntocc"></div>
+  </div>
+
+  <div id="panel-nttitles" class="panel" style="display:none;">
+    <p id="nttitles-intro" style="margin:0 0 10px; font-size:12px; color:#7A7264;">Loading NT data...</p>
+    <div id="controls-nttitles"></div>
+    <div id="table-nttitles"></div>
   </div>
 
   <div id="panel-shortlist" class="panel" style="display:none;">
@@ -1554,6 +1568,196 @@
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Northern Territory datasets. Kept deliberately separate from the WA state and
+  // render path so the two jurisdictions stay independently screenable. NT ships as
+  // zipped shapefiles, so the parse and the site-to-title spatial match are done
+  // offline and committed as JSON under public/data/ — nothing is fetched live.
+  // ---------------------------------------------------------------------------
+  const ntState = {
+    ntocc:    { rows: [], filtered: [], page: 0, sortCol: null, sortDir: 1, search: '', f1: '', f2: '', hideAsx: false, titledOnly: false },
+    nttitles: { rows: [], filtered: [], page: 0, sortCol: null, sortDir: 1, search: '', f1: '', f2: '', hideAsx: false, titledOnly: false },
+  };
+  let ntMeta = null, ntLoaded = false, ntLoading = null;
+
+  const ntoccCols = [
+    { key: 'site_name', label: 'Site' }, { key: 'modat_id', label: 'MODAT ID' },
+    { key: 'commodity_group', label: 'Commodity group' }, { key: 'target_commodity', label: 'Major commodity' },
+    { key: 'modat_status', label: 'MODAT status' }, { key: 'occur_size', label: 'Size' },
+    { key: 'geol_region', label: 'Geological region' }, { key: 'match_count', label: 'Titles' },
+    { key: 'title_id', label: 'Title' }, { key: 'title_type_code', label: 'Type' },
+    { key: 'holder1', label: 'Holder' }, { key: 'expiry_date', label: 'Expires' },
+  ];
+  const nttitlesCols = [
+    { key: 'title_id', label: 'Title' }, { key: 'title_type_code', label: 'Type' },
+    { key: 'register', label: 'Register' }, { key: 'title_status', label: 'Status' },
+    { key: 'holder1', label: 'Holder' }, { key: 'holder_count', label: 'Holders' },
+    { key: 'all_holders', label: 'All holders' }, { key: 'agent', label: 'Agent (not the owner)' },
+    { key: 'area_sqkm', label: 'Area km2' }, { key: 'grant_date', label: 'Granted' },
+    { key: 'expiry_date', label: 'Expires' },
+  ];
+  const ntCols = { ntocc: ntoccCols, nttitles: nttitlesCols };
+
+  async function loadNtData() {
+    if (ntLoaded) return;
+    if (ntLoading) { await ntLoading; return; }
+    ntLoading = (async () => {
+      const [occ, tit, meta] = await Promise.all([
+        fetch('data/nt_occurrences.json').then(r => r.json()),
+        fetch('data/nt_titles.json').then(r => r.json()),
+        fetch('data/nt_meta.json').then(r => r.json()),
+      ]);
+      ntState.ntocc.rows = occ; ntState.ntocc.filtered = occ;
+      ntState.nttitles.rows = tit; ntState.nttitles.filtered = tit;
+      ntMeta = meta; ntLoaded = true;
+    })();
+    try { await ntLoading; } finally { ntLoading = null; }
+  }
+
+  function ntIntroText(ds) {
+    if (!ntMeta) return '';
+    if (ds === 'ntocc') {
+      return ntMeta.sites_total.toLocaleString() + ' NT mineral occurrences (MODAT). '
+        + ntMeta.sites_matched.toLocaleString() + ' sit inside a granted title (' + ntMeta.match_rate + '%), '
+        + ntMeta.sites_multi_title.toLocaleString() + ' overlap more than one, '
+        + ntMeta.sites_unmatched.toLocaleString() + ' have no granted title over them. '
+        + 'Matched by point-in-polygon against granted exploration and production titles only.';
+    }
+    return ntMeta.titles_total.toLocaleString() + ' granted NT mineral titles (exploration + production). '
+      + 'Holder is the registered party; title-services agents are shown separately and are NOT the owner.';
+  }
+
+  function buildNtControls(ds) {
+    const st = ntState[ds];
+    const uniq = (k) => Array.from(new Set(st.rows.map(r => r[k]).filter(Boolean))).sort();
+    const f1k = ds === 'ntocc' ? 'commodity_group' : 'title_type_code';
+    const f2k = ds === 'ntocc' ? 'modat_status' : 'register';
+    const f1l = ds === 'ntocc' ? 'All commodity groups' : 'All title types';
+    const f2l = ds === 'ntocc' ? 'All MODAT statuses' : 'All registers';
+    const opts = (k, sel) => uniq(k).map(v => '<option value="' + escapeAttr(v) + '"' + (sel === v ? ' selected' : '') + '>' + v + '</option>').join('');
+    document.getElementById('controls-' + ds).innerHTML = ''
+      + '<div class="ctrl-row">'
+      + '<input type="text" id="search-' + ds + '" placeholder="Search name, holder, title..." style="width:240px;" value="' + escapeAttr(st.search) + '">'
+      + '<select id="f1-' + ds + '"><option value="">' + f1l + '</option>' + opts(f1k, st.f1) + '</select>'
+      + '<select id="f2-' + ds + '"><option value="">' + f2l + '</option>' + opts(f2k, st.f2) + '</select>'
+      + '<label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="asx-' + ds + '"' + (st.hideAsx ? ' checked' : '') + '> Hide ASX-major holders</label>'
+      + (ds === 'ntocc' ? '<label style="font-size:12px; color:#7A7264;"><input type="checkbox" id="titled-' + ds + '"' + (st.titledOnly ? ' checked' : '') + '> Only sites under a granted title</label>' : '')
+      + '<button id="clear-' + ds + '" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>'
+      + '<button id="csv-' + ds + '" style="padding:6px 12px; border:1px solid #A98D4B; background:#14110D; color:#A98D4B; border-radius:4px; font-size:12px; cursor:pointer;">Export CSV</button>'
+      + '<span style="font-size:12px; color:#7A7264;" id="count-' + ds + '"></span>'
+      + '</div>';
+    document.getElementById('search-' + ds).addEventListener('input', e => { st.search = e.target.value.toLowerCase(); applyNtFilters(ds); });
+    document.getElementById('f1-' + ds).addEventListener('change', e => { st.f1 = e.target.value; applyNtFilters(ds); });
+    document.getElementById('f2-' + ds).addEventListener('change', e => { st.f2 = e.target.value; applyNtFilters(ds); });
+    document.getElementById('asx-' + ds).addEventListener('change', e => { st.hideAsx = e.target.checked; applyNtFilters(ds); });
+    const t = document.getElementById('titled-' + ds);
+    if (t) t.addEventListener('change', e => { st.titledOnly = e.target.checked; applyNtFilters(ds); });
+    document.getElementById('clear-' + ds).addEventListener('click', () => {
+      st.search = ''; st.f1 = ''; st.f2 = ''; st.hideAsx = false; st.titledOnly = false;
+      buildNtControls(ds); applyNtFilters(ds);
+    });
+    document.getElementById('csv-' + ds).addEventListener('click', () => exportNtCsv(ds));
+  }
+
+  function applyNtFilters(ds) {
+    const st = ntState[ds];
+    const f1k = ds === 'ntocc' ? 'commodity_group' : 'title_type_code';
+    const f2k = ds === 'ntocc' ? 'modat_status' : 'register';
+    let rows = st.rows;
+    if (st.f1) rows = rows.filter(r => r[f1k] === st.f1);
+    if (st.f2) rows = rows.filter(r => r[f2k] === st.f2);
+    if (st.hideAsx) rows = rows.filter(r => !String(r.asx_major_holder || '').startsWith('YES'));
+    if (st.titledOnly) rows = rows.filter(r => r.match_count > 0);
+    if (st.search) {
+      const q = st.search;
+      rows = rows.filter(r => (r.site_name || '').toLowerCase().includes(q)
+        || (r.holder1 || '').toLowerCase().includes(q)
+        || (r.all_holders || '').toLowerCase().includes(q)
+        || (r.title_id || '').toLowerCase().includes(q));
+    }
+    st.filtered = rows; st.page = 0;
+    renderNtTable(ds);
+  }
+
+  function renderNtTable(ds) {
+    const st = ntState[ds];
+    const cols = ntCols[ds];
+    const countEl = document.getElementById('count-' + ds);
+    if (countEl) countEl.textContent = st.filtered.length.toLocaleString() + ' rows';
+    const totalPages = Math.max(1, Math.ceil(st.filtered.length / PAGE_SIZE));
+    if (st.page >= totalPages) st.page = totalPages - 1;
+    const start = st.page * PAGE_SIZE;
+    const pageRows = st.filtered.slice(start, start + PAGE_SIZE);
+
+    let html = '<div class="table-scroll"><table><thead><tr><th>Market</th>';
+    cols.forEach(c => { html += '<th data-ntcol="' + c.key + '" style="cursor:pointer;">' + c.label + (st.sortCol === c.key ? (st.sortDir > 0 ? ' &#9650;' : ' &#9660;') : '') + '</th>'; });
+    html += '</tr></thead><tbody>';
+    pageRows.forEach(r => {
+      const major = String(r.asx_major_holder || '').startsWith('YES');
+      let badge;
+      if (!r.holder1) {
+        badge = '<span style="font-size:10px; background:#D3D1C7; color:#2C2C2A; padding:2px 6px; border-radius:3px;" title="No granted title over this site, so there is no holder to assess.">No title</span>';
+      } else if (major) {
+        badge = '<span style="font-size:10px; background:#F0997B; color:#4A1B0C; padding:2px 6px; border-radius:3px;" title="' + escapeAttr('Holder "' + r.holder1 + '" matches the known-majors name list') + '">ASX</span>';
+      } else {
+        badge = '<span style="font-size:10px; background:#C0DD97; color:#173404; padding:2px 6px; border-radius:3px;" title="No match to a known ASX major. This is NOT confirmation of private ownership.">Unverified</span>';
+      }
+      html += '<tr><td>' + badge + '</td>' + cols.map(c => '<td>' + (r[c.key] === 0 ? '0' : (r[c.key] || '')) + '</td>').join('') + '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div class="pager">'
+      + '<button id="ntprev-' + ds + '"' + (st.page === 0 ? ' disabled' : '') + '>Prev</button>'
+      + '<span>Page ' + (st.page + 1) + ' of ' + totalPages + '</span>'
+      + '<button id="ntnext-' + ds + '"' + (st.page >= totalPages - 1 ? ' disabled' : '') + '>Next</button>'
+      + '</div>';
+    document.getElementById('table-' + ds).innerHTML = html;
+
+    document.querySelectorAll('#table-' + ds + ' th[data-ntcol]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-ntcol');
+        if (st.sortCol === col) st.sortDir *= -1; else { st.sortCol = col; st.sortDir = 1; }
+        st.filtered = st.filtered.slice().sort((a, b) => {
+          const av = a[col] == null ? '' : a[col], bv = b[col] == null ? '' : b[col];
+          if (av < bv) return -1 * st.sortDir;
+          if (av > bv) return 1 * st.sortDir;
+          return 0;
+        });
+        renderNtTable(ds);
+      });
+    });
+    const p = document.getElementById('ntprev-' + ds), n = document.getElementById('ntnext-' + ds);
+    if (p) p.addEventListener('click', () => { if (st.page > 0) { st.page--; renderNtTable(ds); } });
+    if (n) n.addEventListener('click', () => { if (st.page < totalPages - 1) { st.page++; renderNtTable(ds); } });
+  }
+
+  function exportNtCsv(ds) {
+    const rows = ntState[ds].filtered;
+    if (!rows.length) return;
+    const keys = Object.keys(rows[0]);
+    let csv = keys.join(',') + '\n';
+    rows.forEach(r => { csv += keys.map(k => '"' + String(r[k] == null ? '' : r[k]).replace(/"/g, '""') + '"').join(',') + '\n'; });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (ds === 'ntocc' ? 'NT_Occurrences' : 'NT_Titles') + '_filtered.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function openNtTab(ds) {
+    const intro = document.getElementById(ds + '-intro');
+    try {
+      await loadNtData();
+    } catch (err) {
+      intro.textContent = 'Could not load NT data: ' + err.message;
+      return;
+    }
+    intro.textContent = ntIntroText(ds);
+    buildNtControls(ds);
+    applyNtFilters(ds);
+  }
+
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
@@ -1563,6 +1767,7 @@
       document.getElementById('panel-' + tab).style.display = 'block';
       if (tab === 'shortlist') renderShortlist();
       if (tab === 'exclusions') renderExclusions();
+      if (tab === 'ntocc' || tab === 'nttitles') openNtTab(tab);
     });
   });
   document.getElementById('export-shortlist').addEventListener('click', exportShortlist);
