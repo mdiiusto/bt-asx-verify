@@ -8,8 +8,9 @@
 const express = require("express");
 const path = require("path");
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } = require("docx");
+const ExcelJS = require("exceljs");
 const app = express();
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "25mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const MODEL = "claude-sonnet-5";
@@ -214,6 +215,130 @@ app.post("/find-candidates", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message || "Candidate search failed" });
+  }
+});
+
+// Builds an .xlsx of the rows the Minedex tab currently has filtered, each paired
+// with its tenement holder. Rows arrive already trimmed to the exported columns;
+// any row whose holder the browser had not resolved can be looked up here, capped
+// so a big export cannot sit on the DMIRS endpoint indefinitely.
+const EXPORT_ROW_CAP = 10000;
+const EXPORT_LOOKUP_CAP = 250;
+
+const XLSX_MINEDEX_COLS = [
+  ["site_code", "Site code"], ["site_name", "Site name"], ["short_name", "Short name"],
+  ["site_commodity_summary", "Commodity summary"], ["site_type", "Site type"],
+  ["site_sub_type", "Sub type"], ["site_stage", "Stage"], ["target_commodity", "Target commodity"],
+  ["commodity_group", "Commodity group"], ["project_code", "Project code"],
+  ["project_name", "Project name"], ["latitude", "Latitude"], ["longitude", "Longitude"],
+  ["web_link", "MINEDEX link"],
+];
+const XLSX_TENEMENT_COLS = [
+  ["tenement_id", "Tenement"], ["tenement_type", "Tenement type"],
+  ["tenement_status", "Tenement status"], ["holder1", "Holder"],
+  ["area", "Area"], ["area_unit", "Unit"], ["end_date", "Expires"],
+];
+
+app.post("/export-minedex-xlsx", async (req, res) => {
+  const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
+  const resolveMissing = req.body.resolveMissing !== false;
+  if (!rows.length) return res.status(400).json({ error: "No rows to export" });
+  if (rows.length > EXPORT_ROW_CAP) {
+    return res.status(400).json({ error: `Too many rows (${rows.length}). Filter down to ${EXPORT_ROW_CAP} or fewer, or use the offline export.` });
+  }
+
+  try {
+    let lookedUp = 0, skippedLookup = 0, fromBrowser = 0;
+    const enriched = [];
+    for (const r of rows) {
+      let ten = r.tenement || null;
+      if (ten) {
+        fromBrowser++;
+      } else if (resolveMissing) {
+        const lat = parseFloat(r.latitude), lon = parseFloat(r.longitude);
+        if (isNaN(lat) || isNaN(lon)) {
+          // no coordinates, nothing to look up
+        } else if (lookedUp < EXPORT_LOOKUP_CAP) {
+          const found = await fetchTenementsAtPointServer(lat, lon);
+          if (found[0]) {
+            const a = found[0];
+            ten = {
+              tenement_id: a.fmt_tenid || a.tenid || "",
+              tenement_type: a.type || "", tenement_status: a.tenstatus || "",
+              holder1: a.holder1 || "", area: a.legal_area || "",
+              area_unit: a.unit_of_me || "", end_date: esriMsToDate(a.enddate),
+            };
+          }
+          lookedUp++;
+        } else {
+          skippedLookup++;
+        }
+      }
+      enriched.push({ row: r, ten });
+    }
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Blackwood & Terrace";
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet("Minedex + Tenement", { views: [{ state: "frozen", ySplit: 1, xSplit: 2 }] });
+    ws.columns = [
+      { header: "Tenement holder found?", key: "matched", width: 22 },
+      { header: "ASX-major holder?", key: "asx", width: 20 },
+      ...XLSX_MINEDEX_COLS.map(([k, label]) => ({ header: label, key: "m_" + k, width: 20 })),
+      ...XLSX_TENEMENT_COLS.map(([k, label]) => ({ header: label, key: "t_" + k, width: 18 })),
+      { header: "AI verdict", key: "ai", width: 18 },
+      { header: "AI note", key: "ai_note", width: 50 },
+    ];
+    ws.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    ws.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF14110D" } };
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: ws.columns.length } };
+
+    let asxCount = 0, matchedCount = 0;
+    for (const { row, ten } of enriched) {
+      const holder = ten ? ten.holder1 : "";
+      const isMajor = isMajorHolder(holder);
+      if (ten) matchedCount++;
+      if (isMajor) asxCount++;
+      const rec = {
+        matched: ten ? "Yes" : "No tenement resolved",
+        asx: holder ? (isMajor ? "YES - known ASX major" : "no match to list") : "",
+        ai: row.ai ? (row.ai.is_listed === true ? "Listed" : row.ai.is_listed === false ? "Private" : "Unclear") : "",
+        ai_note: row.ai ? [row.ai.parent ? "Parent: " + row.ai.parent + "." : "", row.ai.note || ""].filter(Boolean).join(" ") : "",
+      };
+      XLSX_MINEDEX_COLS.forEach(([k]) => { rec["m_" + k] = row[k] == null ? "" : row[k]; });
+      XLSX_TENEMENT_COLS.forEach(([k]) => { rec["t_" + k] = ten && ten[k] != null ? ten[k] : ""; });
+      ws.addRow(rec);
+    }
+
+    const sum = wb.addWorksheet("Summary");
+    sum.columns = [{ width: 44 }, { width: 60 }];
+    [
+      ["Blackwood & Terrace — Minedex export", ""],
+      ["Generated", new Date().toISOString().slice(0, 19).replace("T", " ") + " UTC"],
+      ["", ""],
+      ["Minedex rows exported", enriched.length],
+      ["  tenement holder attached", matchedCount],
+      ["  no tenement resolved", enriched.length - matchedCount],
+      ["  holder flagged as known ASX major", asxCount],
+      ["", ""],
+      ["Holders already resolved in the browser", fromBrowser],
+      ["Holders looked up during this export", lookedUp],
+      ["Rows skipped (lookup cap of " + EXPORT_LOOKUP_CAP + " reached)", skippedLookup],
+      ["", ""],
+      ["NOTE", "\"ASX-major holder?\" is a name heuristic against the static list only."],
+      ["", "It is not confirmation of ownership. \"no match to list\" does NOT mean private."],
+      ["", "A tenement overlapping a site is a lead, not proof that holder owns the site."],
+    ].forEach(r => sum.addRow(r));
+    sum.getRow(1).font = { bold: true, size: 13 };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="BT_Minedex_Export.xlsx"');
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.log("[export-minedex-xlsx] failed:", err.message);
+    res.status(500).json({ error: err.message || "Excel export failed" });
   }
 });
 

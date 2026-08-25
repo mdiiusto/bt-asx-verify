@@ -543,6 +543,8 @@
           <button id="minedex-ai-verify-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">AI-verify &amp; remove listed</button>
           <button id="clear-ai-cache-btn" style="padding:4px 8px; border:1px solid #C9C3B5; background:#fff; color:#7A7264; border-radius:4px; font-size:11px; cursor:pointer;" title="Clear cached AI verdicts so everything gets re-checked fresh">Clear AI cache</button>
           <span id="minedex-ai-verify-status" style="font-size:12px; color:#7A7264;"></span>
+          <button id="export-xlsx-minedex" style="padding:6px 12px; border:1px solid #A98D4B; background:#14110D; color:#A98D4B; border-radius:4px; font-size:12px; cursor:pointer;">Export to Excel</button>
+          <span id="minedex-export-status" style="font-size:12px; color:#7A7264;"></span>
           <button id="clear-filters-minedex" style="padding:6px 12px; border:1px solid #C9C3B5; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Clear filters</button>
           <button id="sync-tenements-btn" style="padding:6px 12px; border:1px solid #A98D4B; background:#fff; color:#14110D; border-radius:4px; font-size:12px; cursor:pointer;">Show matching tenements &#8594;</button>
           <span id="minedex-sync-status" style="font-size:12px; color:#7A7264;"></span>
@@ -620,6 +622,7 @@
       document.getElementById('filter-asx-minedex').addEventListener('change', e => { state.minedex.hideAsx = e.target.checked; applyFilters('minedex'); });
       document.getElementById('minedex-ai-verify-btn').addEventListener('click', runMinedexAiVerify);
       document.getElementById('sync-tenements-btn').addEventListener('click', syncTenementsToMinedexFilter);
+      document.getElementById('export-xlsx-minedex').addEventListener('click', exportMinedexXlsx);
       document.getElementById('clear-ai-cache-btn').addEventListener('click', () => {
         aiVerifiedCache = {};
         document.getElementById('minedex-ai-verify-status').textContent = 'AI verification cache cleared — next run will re-check everything fresh.';
@@ -1282,6 +1285,75 @@
     a.href = url; a.download = 'unverified_names.txt';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // Sends the currently filtered Minedex rows to the server, which pairs each with
+  // its tenement holder and returns a real .xlsx. Only the exported columns are sent,
+  // plus whatever tenement/AI detail this session already resolved, so the request
+  // stays small and the server only has to look up what the browser never fetched.
+  const XLSX_SEND_COLS = ['site_code','site_name','short_name','site_commodity_summary','site_type',
+    'site_sub_type','site_stage','target_commodity','commodity_group','project_code','project_name',
+    'latitude','longitude','web_link'];
+
+  async function exportMinedexXlsx() {
+    const statusEl = document.getElementById('minedex-export-status');
+    const btn = document.getElementById('export-xlsx-minedex');
+    const rows = state.minedex.filtered.slice();
+    if (!rows.length) { statusEl.textContent = 'Nothing to export — no visible rows.'; return; }
+    if (rows.length > 10000) {
+      statusEl.textContent = `${rows.length.toLocaleString()} rows is over the 10,000 limit — filter down first.`;
+      return;
+    }
+    btn.disabled = true;
+    statusEl.textContent = `Building Excel for ${rows.length.toLocaleString()} rows...`;
+
+    const payload = rows.map(r => {
+      const out = {};
+      XLSX_SEND_COLS.forEach(c => { out[c] = r[c] == null ? '' : r[c]; });
+      const cacheKey = `${parseFloat(r.latitude)},${parseFloat(r.longitude)}`;
+      const full = tenementLookupCache[cacheKey + '_full'];
+      const t = Array.isArray(full) && full[0] ? full[0] : null;
+      if (t) {
+        out.tenement = {
+          tenement_id: t.fmt_tenid || t.tenid || '', tenement_type: t.type || '',
+          tenement_status: t.tenstatus || '', holder1: t.holder1 || '',
+          area: t.legal_area || '', area_unit: t.unit_of_me || '',
+          end_date: esriMsToDate(t.enddate),
+        };
+      } else if (r._holderName) {
+        out.tenement = { tenement_id: '', tenement_type: '', tenement_status: '',
+          holder1: r._holderName, area: '', area_unit: '', end_date: '' };
+      }
+      const key = (r._holderName || '').toUpperCase();
+      if (key && aiVerifiedCache[key]) out.ai = aiVerifiedCache[key];
+      return out;
+    });
+
+    try {
+      const resp = await fetch('/export-minedex-xlsx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: payload, resolveMissing: true }),
+      });
+      if (!resp.ok) {
+        let msg = `Export failed (${resp.status})`;
+        try { const e = await resp.json(); if (e.error) msg = e.error; } catch (err) { /* non-JSON error body */ }
+        throw new Error(msg);
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'BT_Minedex_Export.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      statusEl.textContent = `Downloaded ${rows.length.toLocaleString()} rows as BT_Minedex_Export.xlsx`;
+    } catch (err) {
+      statusEl.textContent = 'Export failed: ' + err.message;
+    }
+    btn.disabled = false;
   }
 
   async function syncTenementsToMinedexFilter() {
